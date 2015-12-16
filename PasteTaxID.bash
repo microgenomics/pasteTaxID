@@ -1,6 +1,9 @@
-#Sandro Valenzuela
-#sanrrone@hotmail.com
-
+#######################################################################################################################
+#Autor: Sandro Valenzuela (sanrrone@hotmail.com)
+#pasteTaxID have 2 usage
+#Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir
+#Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)
+#######################################################################################################################
 set -e
 
 #Note: this script doesn't support multifasta, you would cut them before.
@@ -18,9 +21,8 @@ do
 		multifband=1
 	;;
 	"--help")
-		echo "Usage: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
-		echo "Usage: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file"
-		echo "by default, the script assume that you have a lot of fastas, unless you specify a multifasta (--multifasta flag)"
+		echo "Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
+		echo "Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)"
 		exit
 
 	;;
@@ -51,12 +53,18 @@ if [ $((statusband)) -eq 1 ]; then
 		echo "no multifasta specified, continue" 
 	;;
 	"1")
-		echo "splitting multifasta"
+		echo "splitting multifasta, (if the file is a huge file, you should leave the script work and go for a coffe"
 		if [ -f $multif ];then
-			mkdir fastasfolder
-			python split_fasta.py $multif fastafolder
+			mkdir TMP_FOLDER_DONT_TOUCH
+			mv $multif TMP_FOLDER_DONT_TOUCH/.
+			cd TMP_FOLDER_DONT_TOUCH
+			multifname=`echo "$multif" |rev |cut -d '/' -f 1 |rev`
+			awk '/^>/{close(s);s=++d".fasta"} {print > s}' $multifname
+			echo "Splitting complete, DON'T ENTER TO TMP_FOLDER WHILE SCRIPT IS RUNNING"
 			WORKDIR=`pwd`
-			WORKDIR="${WORKDIR}/fastafolder"
+			cd ..
+			EXECUTEWORKDIR=`pwd`
+
 		else
 			echo "exist($multifasta) = FALSE"
 			exit
@@ -64,18 +72,22 @@ if [ $((statusband)) -eq 1 ]; then
 		
 	;;
 	*)
-		echo "unknow error with multifastaflag"
+		echo "unknow error at multifastaflag"
 		exit
 	;;
 	esac
 
 
 ######################		MAKE HEADERS	##########################
+
+
 	fileout="headers.txt"
 	switchfile="newheader.txt"
 	echo "make headers from fastas"
 	python appendheaders.py $WORKDIR $fileout	#just take the first line of each fasta (>foo|1234|)
 	cd $WORKDIR
+	
+	
 ######################################################################
 
 ######################		FETCH ID		##########################
@@ -161,9 +173,10 @@ if [ $((statusband)) -eq 1 ]; then
 	done < $switchfile
 
 ###################		MERGE FASTAS		############################
-	python merge.py $WORKDIR $multif
-	mv $multif ../.
-	rm -r fastafolder
+	#python merge.py folder_files file_out_name
+	python merge.py $WORKDIR $multifname
+	mv $multifname ../.
+	rm -r TMP_FOLDER_DONT_TOUCH
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
 	exit
