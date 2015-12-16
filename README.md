@@ -5,10 +5,11 @@ Support a lot files (more than 150000), avoiding the system collapse and save a 
 
 ## Usage
 
-    bash PasteTaxID.bash --workpath [directory_fastas]
+    bash pasteTaxID.bash --workpath [directory_fastas]
+    bash pasteTaxID.bash --multifasta [multifasta_file]
 
-where workpath is a directory where your fastas are. In the example folder there are some fastas that doesn't contain a gi or a ti, just gb, try to test the script writing:  "bash PasteTaxID.bash --workpath example", wait a seconds and see the fastas again, now you can see the tax id and gi.
+where --workpath is a directory where your fastas are and --multifasta is the multifasta file (.fna, fn works too). 
+In the example folder there are some fastas that doesn't contain a gi or a ti, just gb, try to test the script writing:  "bash PasteTaxID.bash --workpath example", wait a seconds and see the fastas again, now you can see the tax id and gi.
 
 ### Warning
-PasteTaxID doesn't support multi-fastas, you have to cut them. try: csplit -z mymultifasta.fasta '/>/' '{*}'
-the same command for .fna, .fn, etc works too.
+if you have a huge multifasta, run the script and go for a coffe (or 2).
