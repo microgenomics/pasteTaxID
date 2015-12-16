@@ -6,7 +6,6 @@
 #######################################################################################################################
 set -e
 
-#Note: this script doesn't support multifasta, you would cut them before.
 statusband=0
 workpathband=0
 multifband=0
@@ -53,13 +52,14 @@ if [ $((statusband)) -eq 1 ]; then
 		echo "no multifasta specified, continue" 
 	;;
 	"1")
-		echo "splitting multifasta, (if the file is a huge file, you should leave the script work and go for a coffe"
+		echo "splitting multifasta, (if the file is a huge file, you should go for a coffee while the script works"
 		if [ -f $multif ];then
 			mkdir TMP_FOLDER_DONT_TOUCH
 			mv $multif TMP_FOLDER_DONT_TOUCH/.
 			cd TMP_FOLDER_DONT_TOUCH
 			multifname=`echo "$multif" |rev |cut -d '/' -f 1 |rev`
 			awk '/^>/{close(s);s=++d".fasta"} {print > s}' $multifname
+			mv $multifname ../.
 			echo "Splitting complete, DON'T ENTER TO TMP_FOLDER WHILE SCRIPT IS RUNNING"
 			WORKDIR=`pwd`
 			cd ..
@@ -96,7 +96,7 @@ if [ $((statusband)) -eq 1 ]; then
 	i=1
 	while read line
 	do
-		echo "fetching Tax ID $i of $total)"
+		echo "fetching Tax ID ($i of $total)"
 		#first, we get the critical data through awk and the ID that we find
 		fasta=`echo $line |awk '{print $1}'`
 		gi=`echo "$line" |awk -v ID="gi" -f ${EXECUTEWORKDIR}/parsefasta.awk &`
@@ -110,7 +110,7 @@ if [ $((statusband)) -eq 1 ]; then
 			echo "Tax Id exist, continue with next fasta"
 		else
 			if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == ""];then
-				echo "any id is aviable for fetch in $fasta"
+				echo "no id is available for fetch in $fasta"
 			else
 				if [ "$gi" != "" ];then
 					ti=""
@@ -154,7 +154,7 @@ if [ $((statusband)) -eq 1 ]; then
 		i=$((i+1))
 	
 	done < $fileout
-####################		ADD TI		##########################	
+####################		ADD ID's		##########################	
 	i=1
 	while read line
 	do
@@ -174,8 +174,10 @@ if [ $((statusband)) -eq 1 ]; then
 
 ###################		MERGE FASTAS		############################
 	#python merge.py folder_files file_out_name
-	python merge.py $WORKDIR $multifname
-	mv $multifname ../.
+	python ${EXECUTEWORKDIR}/merge.py $WORKDIR $multifname.new
+	mv $multifname.new new_$multifname
+	mv new_$multifname ../.
+	cd ..
 	rm -r TMP_FOLDER_DONT_TOUCH
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
