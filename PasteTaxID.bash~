@@ -163,7 +163,6 @@ if [ $((statusband)) -eq 1 ]; then
 ###################		MERGE FASTAS		############################
 	python merge.py $WORKDIR $multif
 	mv $multif ../.
-	rm -r fastafolder
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
 	exit

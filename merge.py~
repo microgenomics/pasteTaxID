@@ -5,7 +5,7 @@ import sys
 
 if len(sys.argv) >= 3:
 	os.chdir(sys.argv[1])
-	fastaapend=open(sys.argv[2], "w")
+	fastaapend=open(sys.argv[1], "w")
 	for file in glob.glob("*.fasta"):
 		fasta=open(file, "r")
 		lines = fasta.readlines()
