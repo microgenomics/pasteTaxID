@@ -6,7 +6,8 @@ This script will take a multifasta file (or many individual fasta files), then s
 pasteTaxID can take large multifasta files (we have tried more than 150000 without any problems), avoiding collapsing your system and saving a lot of time!
 
 ##Requirements
-bash version 4
+* Bash version 4
+* Internet connection
 
 ## Usage
 There are two ways of running the script. If you have a directory with individual fasta files then you could use the first strategy
