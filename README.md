@@ -5,6 +5,9 @@ Welcome to the final solution to a lot of headaches :D
 This script will take a multifasta file (or many individual fasta files), then search for common IDs (ti, gi, emb, gb), and append the corresponding ti (and gi if missing) to fasta entries at high speed (2-3 fasta entries per second)
 pasteTaxID can take large multifasta files (we have tried more than 150000 without any problems), avoiding collapsing your system and saving a lot of time!
 
+##Requirements
+bash version 4
+
 ## Usage
 There are two ways of running the script. If you have a directory with individual fasta files then you could use the first strategy
 
