@@ -7,6 +7,7 @@ pasteTaxID can take large multifasta files (we have tried more than 150000 witho
 
 ##Requirements
 * Bash version 4
+* Python >=2.7
 * Internet connection
 
 ## Usage

@@ -3,8 +3,79 @@
 #pasteTaxID have 2 usage
 #Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir
 #Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)
+#for debug add --debug
 #######################################################################################################################
-set -e
+
+if [[ "$@" =~ "--debug" ]]; then
+	set -ex
+else
+	set -e
+fi
+
+function makePythonWork {
+	echo '#!/usr/bin/python
+
+import glob,os
+import sys
+
+if len(sys.argv) >= 3:
+	os.chdir(sys.argv[1])
+	fastaapend=open(sys.argv[2],"wb")
+
+	for file in glob.glob("*.fasta"):
+		fasta=open(file, "r")
+		oneline = fasta.readline()
+		seq =(file,oneline)
+		s=" "
+		fastaapend.write(s.join(seq))
+		fasta.close()
+		
+	fastaapend.close()
+
+else:
+        print "Workpath and file_out are needed";' > appendheaders.py
+}
+
+function makeAwkWork {
+	echo 'BEGIN{FS="|"}
+{
+if($1~">"){
+	split($1,array,">")
+	$1=array[2]
+	for (i=1;i<100;i++){
+	band=0;
+		if($i != ""){
+				if($i==ID){
+					ID=$(i+1);
+					print ID
+					exit 0
+				}
+		}
+				
+	}
+}
+}' > parsefasta.awk
+}
+
+function makeMergeWork {
+	echo '#!/usr/bin/python
+
+import glob,os
+import sys
+
+if len(sys.argv) >= 3:
+	os.chdir(sys.argv[1])
+	fastappend=open(sys.argv[2], "w")
+	for file in glob.glob("*.fasta"):
+		fasta=open(file, "r")
+		lines = fasta.readlines()
+		seq="".join(lines)
+		fastappend.write(seq)
+		fasta.close()
+	fastappend.close()
+else:
+	print "Workpath and file_out are needed";' > merge.py
+}
 
 statusband=0
 workpathband=0
@@ -84,7 +155,9 @@ if [ $((statusband)) -eq 1 ]; then
 	fileout="headers.txt"
 	switchfile="newheader.txt"
 	echo "make headers from fastas"
+	makePythonWork
 	python appendheaders.py $WORKDIR $fileout	#just take the first line of each fasta (>foo|1234|)
+	rm -f appendheaders.py
 	cd $WORKDIR
 	
 	
@@ -94,15 +167,16 @@ if [ $((statusband)) -eq 1 ]; then
 
 	total=`wc -l $fileout |awk '{print $1}'`
 	i=1
+	makeAwkWork
 	while read line
 	do
 		echo "fetching Tax ID ($i of $total)"
 		#first, we get the critical data through awk and the ID that we find
 		fasta=`echo $line |awk '{print $1}'`
-		gi=`echo "$line" |awk -v ID="gi" -f ${EXECUTEWORKDIR}/parsefasta.awk &`
-		ti=`echo "$line" |awk -v ID="ti" -f ${EXECUTEWORKDIR}/parsefasta.awk &`
-		gb=`echo "$line" |awk -v ID="gb" -f ${EXECUTEWORKDIR}/parsefasta.awk &`
-		emb=`echo "$line" |awk -v ID="emb" -f ${EXECUTEWORKDIR}/parsefasta.awk &`
+		gi=`echo "$line" |awk -v ID="gi" -f parsefasta.awk &`
+		ti=`echo "$line" |awk -v ID="ti" -f parsefasta.awk &`
+		gb=`echo "$line" |awk -v ID="gb" -f parsefasta.awk &`
+		emb=`echo "$line" |awk -v ID="emb" -f parsefasta.awk &`
 		wait $!
 
 		#the purpose this script is get the tax id, if exist just continue with next fasta
@@ -154,6 +228,7 @@ if [ $((statusband)) -eq 1 ]; then
 		i=$((i+1))
 	
 	done < $fileout
+	rm -f parsefasta.awk
 ####################		ADD ID's		##########################	
 	i=1
 	while read line
@@ -164,9 +239,13 @@ if [ $((statusband)) -eq 1 ]; then
 		echo "working on $fasta  ($i/$total)"
 
 		if [ "$gi" == "" ];then
-			sed -i '' "s/>/>ti|$ti|/g" $fasta
+			sed "s/>/>ti|$ti|/g" tmp
+			rm $fasta
+			mv tmp $fasta
 		else
-			sed -i '' "s/>/>ti|$ti|gi|$gi|/g" $fasta
+			sed "s/>/>ti|$ti|gi|$gi|/g" tmp
+			rm $fasta
+			mv tmp $fasta
 		fi
 		i=$((i+1))
 		
@@ -174,11 +253,14 @@ if [ $((statusband)) -eq 1 ]; then
 
 ###################		MERGE FASTAS		############################
 	#python merge.py folder_files file_out_name
-	python ${EXECUTEWORKDIR}/merge.py $WORKDIR $multifname.new
+	makeMergeWork
+	python merge.py $WORKDIR $multifname.new
 	mv $multifname.new new_$multifname
 	mv new_$multifname ../.
+	rm -f merge.py
 	cd ..
 	rm -r TMP_FOLDER_DONT_TOUCH
+	echo "Done"
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
 	exit
