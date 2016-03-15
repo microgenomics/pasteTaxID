@@ -93,6 +93,7 @@ do
 	"--help")
 		echo "Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
 		echo "Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)"
+		echo "Note: --workdir will take your fastas and put the tax id in the same file, make sure you have a backup of files."
 		exit
 
 	;;
