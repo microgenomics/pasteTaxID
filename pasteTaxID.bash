@@ -110,7 +110,7 @@ do
 			multifband=0
 			multiway=1
 			actual=`pwd`
-			multifname=`echo "$multif" |rev |cut -d '/' -f 1 |rev`
+			multifname=`echo "$i" |rev |cut -d '/' -f 1 |rev`
 			multffolder=`echo "$i" |rev |cut -d "/" -f 2- |rev`
 			cd $multffolder
 			multffolder=`pwd`
@@ -131,6 +131,7 @@ if [ $((statusband)) -eq 1 ]; then
 	"1")
 		echo "splitting multifasta, (if the file is a huge file, you should go for a coffee while the script works"
 		if [ -f $multif ];then
+			rm -fr TMP_FOLDER_DONT_TOUCH
 			mkdir TMP_FOLDER_DONT_TOUCH
 			cd TMP_FOLDER_DONT_TOUCH
 			awk '/^>/{close(s);s=++d".fasta"} {print > s}' $multffolder/$multifname
@@ -157,11 +158,9 @@ if [ $((statusband)) -eq 1 ]; then
 	fileout="headers.txt"
 	switchfile="newheader.txt"
 	echo "make headers from fastas"
-	makePythonWork
-	python appendheaders.py $WORKDIR $fileout	#just take the first line of each fasta (>foo|1234|)
-	rm -f appendheaders.py
 	cd $WORKDIR
-	
+	makePythonWork
+	python appendheaders.py $WORKDIR $fileout	#just take the first line of each fasta (>foo|1234|lorem ipsum)
 	
 ######################################################################
 
@@ -170,17 +169,32 @@ if [ $((statusband)) -eq 1 ]; then
 	total=`wc -l $fileout |awk '{print $1}'`
 	i=1
 	makeAwkWork
+	declare -A pids
+
 	while read line
 	do
 		echo "fetching Tax ID ($i of $total)"
 		#first, we get the critical data through awk and the ID that we find
 		fasta=`echo $line |awk '{print $1}'`
 		gi=`echo "$line" |awk -v ID="gi" -f parsefasta.awk &`
+		lastpid=$!
+		pids[0]="$lastpid"
 		ti=`echo "$line" |awk -v ID="ti" -f parsefasta.awk &`
+		lastpid=$!
+		pids[1]="$lastpid"
 		gb=`echo "$line" |awk -v ID="gb" -f parsefasta.awk &`
+		lastpid=$!
+		pids[2]="$lastpid"
 		emb=`echo "$line" |awk -v ID="emb" -f parsefasta.awk &`
-		wait $!
+		lastpid=$!
+		pids[3]="$lastpid"
 
+		for pid in "${pids[@]}"
+		do
+			while kill -0 "$pid" &> /dev/null; do
+            	sleep 0.1
+        	done
+		done
 		#the purpose this script is get the tax id, if exist just continue with next fasta
 		if [  "$ti" != "" ];then
 			echo "Tax Id exist, continue with next fasta"
@@ -229,8 +243,7 @@ if [ $((statusband)) -eq 1 ]; then
 		
 		i=$((i+1))
 	
-	done < $fileout
-	rm -f parsefasta.awk
+	done < <(grep "" $fileout)
 ####################		ADD ID's		##########################	
 	i=1
 	while read line
@@ -251,7 +264,7 @@ if [ $((statusband)) -eq 1 ]; then
 		fi
 		i=$((i+1))
 		
-	done < $switchfile
+	done < <(grep "" $switchfile)
 
 ###################		MERGE FASTAS		############################
 	#python merge.py folder_files file_out_name
@@ -259,7 +272,6 @@ if [ $((statusband)) -eq 1 ]; then
 	python merge.py $WORKDIR $multifname.new
 	mv $multifname.new new_$multifname
 	mv new_$multifname ../.
-	rm -f merge.py
 	cd ..
 	rm -r TMP_FOLDER_DONT_TOUCH
 	echo "Done"
