@@ -109,6 +109,12 @@ do
 			statusband=$((statusband+1))
 			multifband=0
 			multiway=1
+			actual=`pwd`
+			multifname=`echo "$multif" |rev |cut -d '/' -f 1 |rev`
+			multffolder=`echo "$i" |rev |cut -d "/" -f 2- |rev`
+			cd $multffolder
+			multffolder=`pwd`
+			cd $actual
 			multif=$i
 		fi
 
@@ -126,15 +132,11 @@ if [ $((statusband)) -eq 1 ]; then
 		echo "splitting multifasta, (if the file is a huge file, you should go for a coffee while the script works"
 		if [ -f $multif ];then
 			mkdir TMP_FOLDER_DONT_TOUCH
-			mv $multif TMP_FOLDER_DONT_TOUCH/.
 			cd TMP_FOLDER_DONT_TOUCH
-			multifname=`echo "$multif" |rev |cut -d '/' -f 1 |rev`
-			awk '/^>/{close(s);s=++d".fasta"} {print > s}' $multifname
-			mv $multifname ../.
-			echo "Splitting complete, DON'T ENTER TO TMP_FOLDER WHILE SCRIPT IS RUNNING"
+			awk '/^>/{close(s);s=++d".fasta"} {print > s}' $multffolder/$multifname
+			echo "Splitting complete, DON'T TOUCH TMP_FOLDER WHILE SCRIPT IS RUNNING"
 			WORKDIR=`pwd`
 			cd ..
-			EXECUTEWORKDIR=`pwd`
 
 		else
 			echo "exist($multifasta) = FALSE"
@@ -239,11 +241,11 @@ if [ $((statusband)) -eq 1 ]; then
 		echo "working on $fasta  ($i/$total)"
 
 		if [ "$gi" == "" ];then
-			sed "s/>/>ti|$ti|/g" tmp
+			sed "s/>/>ti|$ti|/g" $fasta > tmp
 			rm $fasta
 			mv tmp $fasta
 		else
-			sed "s/>/>ti|$ti|gi|$gi|/g" tmp
+			sed "s/>/>ti|$ti|gi|$gi|/g" $fasta > tmp
 			rm $fasta
 			mv tmp $fasta
 		fi
