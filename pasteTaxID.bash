@@ -84,7 +84,7 @@ multiway=0
 for i in "$@"
 do
 	case $i in
-	"--workpath")
+	"--workdir")
 		workpathband=1
 	;;
 	"--multifasta")
@@ -198,7 +198,7 @@ if [ $((statusband)) -eq 1 ]; then
 		done
 		#the purpose this script is get the tax id, if exist just continue with next fasta
 		if [  "$ti" != "" ];then
-			echo "Tax Id exist, continue with next fasta"
+			echo "Tax Id exist in $fasta, new file will not generated"
 		else
 			if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == ""];then
 				echo "no id is available for fetch in $fasta"
@@ -247,6 +247,7 @@ if [ $((statusband)) -eq 1 ]; then
 	done < <(grep "" $fileout)
 ####################		ADD ID's		##########################	
 	i=1
+	total=`wc -l $switchfile |awk '{print $1}'`
 	while read line
 	do
 		fasta=`echo "$line" |awk '{print $1}'`
@@ -256,12 +257,26 @@ if [ $((statusband)) -eq 1 ]; then
 
 		if [ "$gi" == "" ];then
 			sed "s/>/>ti|$ti|/g" $fasta > tmp
-			rm $fasta
-			mv tmp $fasta
+				case $multiway in
+				"0")
+					mv tmp new_$fasta
+				;;
+				"1")
+					rm $fasta
+					mv tmp $fasta
+				;;
+				esac
 		else
 			sed "s/>/>ti|$ti|gi|$gi|/g" $fasta > tmp
-			rm $fasta
-			mv tmp $fasta
+				case $multiway in
+				"0")
+					mv tmp new_$fasta
+				;;
+				"1")
+					rm $fasta
+					mv tmp $fasta
+				;;
+				esac
 		fi
 		i=$((i+1))
 		
@@ -269,12 +284,20 @@ if [ $((statusband)) -eq 1 ]; then
 
 ###################		MERGE FASTAS		############################
 	#python merge.py folder_files file_out_name
-	makeMergeWork
-	python merge.py $WORKDIR $multifname.new
-	mv $multifname.new new_$multifname
-	mv new_$multifname ../.
-	cd ..
-	rm -r TMP_FOLDER_DONT_TOUCH
+	case $multiway in
+	"0")
+		rm -f appendheaders.py $fileout $switchfile parsefasta.awk
+	;;
+	"1")
+		makeMergeWork
+		python merge.py $WORKDIR $multifname.new
+		mv $multifname.new new_$multifname
+		mv new_$multifname ../.
+		cd ..
+		rm -rf TMP_FOLDER_DONT_TOUCH
+	;;
+	esac
+
 	echo "Done"
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
