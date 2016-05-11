@@ -135,7 +135,6 @@ if [ $((statusband)) -eq 1 ]; then
 	;;
 	"1")
 		echo "splitting multifasta, (if the file is a huge file, you should go for a coffee while the script works"
-		echo "100mb = 5min aprox."
 		if [ -f $multif ];then
 			rm -fr TMP_FOLDER_DONT_TOUCH
 			mkdir TMP_FOLDER_DONT_TOUCH
@@ -163,10 +162,19 @@ if [ $((statusband)) -eq 1 ]; then
 
 	fileout="headers.txt"
 	switchfile="newheader.txt"
-	echo "make headers from fastas"
+	echo "making headers from fastas"
 	cd $WORKDIR
 	makePythonWork
-	python appendheaders.py $WORKDIR $fileout	#just take the first line of each fasta (>foo|1234|lorem ipsum)
+	case $multiway in
+		"0")
+			#workpath
+			python appendheaders.py "." $fileout	#just take the first line of each fasta (>foo|1234|lorem ipsum)
+		;;
+		"1")
+			#multif
+			python appendheaders.py $WORKDIR $fileout	#just take the first line of each fasta (>foo|1234|lorem ipsum)
+		;;
+	esac
 	
 ######################################################################
 
@@ -182,22 +190,23 @@ if [ $((statusband)) -eq 1 ]; then
 		echo "fetching Tax ID ($i of $total)"
 		#first, we get the critical data through awk and the ID that we find
 		fasta=`echo $line |awk '{print $1}'`
-		gi=`echo "$line" |awk -v ID="gi" -f parsefasta.awk &`
+		fastaheader=`echo $line |awk '{print $2}'`
+		gi=`echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk &`
 		lastpid=$!
 		pids[0]="$lastpid"
-		ti=`echo "$line" |awk -v ID="ti" -f parsefasta.awk &`
+		ti=`echo "$fastaheader" |awk -v ID="ti" -f parsefasta.awk &`
 		lastpid=$!
 		pids[1]="$lastpid"
-		gb=`echo "$line" |awk -v ID="gb" -f parsefasta.awk &`
+		gb=`echo "$fastaheader" |awk -v ID="gb" -f parsefasta.awk &`
 		lastpid=$!
 		pids[2]="$lastpid"
-		emb=`echo "$line" |awk -v ID="emb" -f parsefasta.awk &`
+		emb=`echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk &`
 		lastpid=$!
 		pids[3]="$lastpid"
 
 		for pid in "${pids[@]}"
 		do
-			while kill -0 "$pid" &> /dev/null; do
+			while [[ ( -d /proc/$pid ) && ( -z "grep zombie /proc/$pid/status" ) ]]; do
             	sleep 0.1
         	done
 		done
