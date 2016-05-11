@@ -170,7 +170,7 @@ if [ $((statusband)) -eq 1 ]; then
 	total=`wc -l $fileout |awk '{print $1}'`
 	i=1
 	makeAwkWork
-	declare -A pids
+	declare pids
 
 	while read line
 	do
