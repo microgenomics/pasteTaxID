@@ -112,11 +112,15 @@ do
 			multiway=1
 			actual=`pwd`
 			multifname=`echo "$i" |rev |cut -d '/' -f 1 |rev`
-			multffolder=`echo "$i" |rev |cut -d "/" -f 2- |rev`
-			cd $multffolder
-			multffolder=`pwd`
-			cd $actual
-			multif=$i
+			multffolder=`echo "$i" |rev |cut -d '/' -f 2- |rev`
+			if [ "$multifname" == "$multffolder" ];then
+				multif=$multifname
+			else
+				cd $multffolder
+				multffolder=`pwd`
+				cd $actual
+				multif="$multffolder/$multifname"
+			fi
 		fi
 
 	esac
@@ -131,11 +135,12 @@ if [ $((statusband)) -eq 1 ]; then
 	;;
 	"1")
 		echo "splitting multifasta, (if the file is a huge file, you should go for a coffee while the script works"
+		echo "100mb = 5min aprox."
 		if [ -f $multif ];then
 			rm -fr TMP_FOLDER_DONT_TOUCH
 			mkdir TMP_FOLDER_DONT_TOUCH
 			cd TMP_FOLDER_DONT_TOUCH
-			awk '/^>/{close(s);s=++d".fasta"} {print > s}' $multffolder/$multifname
+			awk '/^>/{close(s);s=++d".fasta"} {print > s}' ../$multif
 			echo "Splitting complete, DON'T TOUCH TMP_FOLDER WHILE SCRIPT IS RUNNING"
 			WORKDIR=`pwd`
 			cd ..
