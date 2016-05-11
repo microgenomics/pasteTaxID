@@ -213,6 +213,7 @@ if [ $((statusband)) -eq 1 ]; then
 		#the purpose this script is get the tax id, if exist just continue with next fasta
 		if [  "$ti" != "" ];then
 			echo "Tax Id exist in $fasta, new file will not generated"
+			echo "$fasta $ti" >> switchfile
 		else
 			if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == ""];then
 				echo "no id is available for fetch in $fasta"
