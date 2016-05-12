@@ -136,11 +136,11 @@ if [ $((statusband)) -eq 1 ]; then
 	"1")
 		echo "splitting multifasta, (if the file is a huge file, you should go for a coffee while the script works"
 		if [ -f $multif ];then
-			rm -fr TMP_FOLDER_DONT_TOUCH
-			mkdir TMP_FOLDER_DONT_TOUCH
-			cd TMP_FOLDER_DONT_TOUCH
+			rm -fr $multifname""_TMP_FOLDER_DONT_TOUCH
+			mkdir $multifname""_TMP_FOLDER_DONT_TOUCH
+			cd $multifname""_TMP_FOLDER_DONT_TOUCH
 			awk '/^>/{close(s);s=++d".fasta"} {print > s}' ../$multif
-			echo "Splitting complete, DON'T TOUCH TMP_FOLDER WHILE SCRIPT IS RUNNING"
+			echo "Splitting complete, DON'T TOUCH $multifname_TMP_FOLDER WHILE SCRIPT IS RUNNING"
 			WORKDIR=`pwd`
 			cd ..
 
@@ -309,7 +309,7 @@ if [ $((statusband)) -eq 1 ]; then
 		mv $multifname.new new_$multifname
 		mv new_$multifname ../.
 		cd ..
-		rm -rf TMP_FOLDER_DONT_TOUCH
+		rm -rf $multifname""_TMP_FOLDER_DONT_TOUCH
 	;;
 	esac
 
