@@ -224,7 +224,12 @@ if [ $((statusband)) -eq 1 ]; then
 					do
 						ti=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1`
 					done
-					echo "$fasta $ti" >> $switchfile
+
+					if [ "$ti" == "$gi" ];then
+						ti=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '{print $2}'`
+					else
+						echo "$fasta $ti" >> $switchfile
+					fi
 
 					gb=""
 					emb=""
