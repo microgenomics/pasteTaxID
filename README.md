@@ -19,7 +19,7 @@ However, if you have a multifasta file, the appropriate command line is
 
     bash pasteTaxID.bash --multifasta [multifasta_file]
 
-where `--workpath` is a directory where your fastas are and `--multifasta` is the multifasta file (.fna, fn works too). 
+where `--workpath` is a directory where your fastas are and `--multifasta` is the multifasta file (.fna, .fn or .fasta works too). 
 
 In the example folder there are some fastas that don't contain a gi or a ti, just gb. Try testing the script by issueing
 

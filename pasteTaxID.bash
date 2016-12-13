@@ -141,7 +141,7 @@ if [ $((statusband)) -eq 1 ]; then
 			cd $multifname""_TMP_FOLDER_DONT_TOUCH
 			awk '/^>/{close(s);s=++d".fasta"} {print > s}' ../$multif
 			echo "Splitting complete, DON'T TOUCH $multifname_TMP_FOLDER WHILE SCRIPT IS RUNNING"
-			WORKDIR=`pwd`
+			WORKDIR=$(pwd)
 			cd ..
 
 		else
@@ -180,27 +180,27 @@ if [ $((statusband)) -eq 1 ]; then
 
 ######################		FETCH ID		##########################
 
-	total=`wc -l $fileout |awk '{print $1}'`
+	total=$(wc -l $fileout |awk '{print $1}')
 	i=1
 	makeAwkWork
 	declare pids
 
 	while read line
 	do
-		echo "fetching Tax ID ($i of $total)"
+		echo "fetching taxid ($i of $total)"
 		#first, we get the critical data through awk and the ID that we find
-		fasta=`echo $line |awk '{print $1}'`
-		fastaheader=`echo $line |awk '{print $2}'`
-		gi=`echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk &`
+		fasta=$(echo $line |awk '{print $1}')
+		fastaheader=$(echo $line |awk '{print $2}')
+		gi=$(echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk &)
 		lastpid=$!
 		pids[0]="$lastpid"
-		ti=`echo "$fastaheader" |awk -v ID="ti" -f parsefasta.awk &`
+		ti=$(echo "$fastaheader" |awk -v ID="ti" -f parsefasta.awk &)
 		lastpid=$!
 		pids[1]="$lastpid"
-		gb=`echo "$fastaheader" |awk -v ID="gb" -f parsefasta.awk &`
+		gb=$(echo "$fastaheader" |awk -v ID="gb" -f parsefasta.awk &)
 		lastpid=$!
 		pids[2]="$lastpid"
-		emb=`echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk &`
+		emb=$(echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk &)
 		lastpid=$!
 		pids[3]="$lastpid"
 
@@ -216,17 +216,20 @@ if [ $((statusband)) -eq 1 ]; then
 			echo "$fasta $ti" >> switchfile
 		else
 			if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == ""];then
+				#trying first string as Accession number
+				#ac=$(echo "$fastaheader" |awk '{gsub(">","");print $1}')
+
 				echo "no id is available for fetch in $fasta"
 			else
 				if [ "$gi" != "" ];then
 					ti=""
 					while [ "$ti" == "" ]
 					do
-						ti=`curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1`
+						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
 					done
 
 					if [ "$ti" == "$gi" ];then
-						ti=`curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '{print $2}'`
+						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '{print $2}')
 					else
 						echo "$fasta $ti" >> $switchfile
 					fi
@@ -240,8 +243,8 @@ if [ $((statusband)) -eq 1 ]; then
 					ti=""
 					while [ "$ti" == "" ]
 					do
-						gi=`curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk`
-						ti=`curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1`
+						gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
+						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
 					done
 					echo "$fasta $ti $gi" >> $switchfile
 
@@ -252,8 +255,8 @@ if [ $((statusband)) -eq 1 ]; then
 					ti=""
 					while [ "$ti" == "" ]
 					do
-						gi=`curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk`
-						ti=`curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1`
+						gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
+						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
 					done
 					echo "$fasta $ti $gi" >> $switchfile				
 
@@ -267,12 +270,12 @@ if [ $((statusband)) -eq 1 ]; then
 	done < <(grep "" $fileout)
 ####################		ADD ID's		##########################	
 	i=1
-	total=`wc -l $switchfile |awk '{print $1}'`
+	total=$(wc -l $switchfile |awk '{print $1}')
 	while read line
 	do
-		fasta=`echo "$line" |awk '{print $1}'`
-		ti=`echo "$line" |awk '{print $2}'`
-		gi=`echo "$line" |awk '{print $3}'`
+		fasta=$(echo "$line" |awk '{print $1}')
+		ti=$(echo "$line" |awk '{print $2}')
+		gi=$(echo "$line" |awk '{print $3}')
 		echo "working on $fasta  ($i/$total)"
 
 		if [ "$gi" == "" ];then
