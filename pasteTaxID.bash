@@ -162,6 +162,7 @@ if [ $((statusband)) -eq 1 ]; then
 
 	fileout="headers.txt"
 	switchfile="newheader.txt"
+	touch $switchfile
 	echo "making headers from fastas"
 	cd $WORKDIR
 	makePythonWork
@@ -203,6 +204,9 @@ if [ $((statusband)) -eq 1 ]; then
 		emb=$(echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk &)
 		lastpid=$!
 		pids[3]="$lastpid"
+		ref=$(echo "$fastaheader" |awk -v ID="ref" -f parsefasta.awk &)
+		lastpid=$!
+		pids[4]="$lastpid"
 
 		for pid in "${pids[@]}"
 		do
@@ -212,14 +216,25 @@ if [ $((statusband)) -eq 1 ]; then
 		done
 		#the purpose this script is get the tax id, if exist just continue with next fasta
 		if [  "$ti" != "" ];then
-			echo "Tax Id exist in $fasta, new file will not generated"
-			echo "$fasta $ti" >> switchfile
+			echo "Tax Id exist in $fasta, continue"
+			echo "$fasta $ti" >> $switchfile
 		else
-			if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == ""];then
+			if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == "" ] && [ "$ref" == "" ];then
 				#trying first string as Accession number
-				#ac=$(echo "$fastaheader" |awk '{gsub(">","");print $1}')
+				ac=$(echo "$fastaheader" |awk '{gsub(">","");print $1}')
+				ti=""
+				while [ "$ti" == "" ]
+				do
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
+				done
 
-				echo "no id is available for fetch in $fasta"
+				if [  "$ti" != "" ];then
+					echo "$fasta $ti" >> $switchfile
+				else
+					echo "No id to fetch is available, stop the proccess"
+					exit
+				fi
+
 			else
 				if [ "$gi" != "" ];then
 					ti=""
@@ -246,7 +261,7 @@ if [ $((statusband)) -eq 1 ]; then
 						gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
 						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
 					done
-					echo "$fasta $ti $gi" >> $switchfile
+					echo "$fasta $ti" >> $switchfile
 
 					gb=""
 				fi
@@ -258,7 +273,17 @@ if [ $((statusband)) -eq 1 ]; then
 						gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
 						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
 					done
-					echo "$fasta $ti $gi" >> $switchfile				
+					echo "$fasta $ti" >> $switchfile				
+
+				fi	
+
+				if [ "$ref" != "" ];then
+					ti=""
+					while [ "$ti" == "" ]
+					do
+						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
+					done
+					echo "$fasta $ti" >> $switchfile				
 
 				fi								
 				
@@ -275,34 +300,20 @@ if [ $((statusband)) -eq 1 ]; then
 	do
 		fasta=$(echo "$line" |awk '{print $1}')
 		ti=$(echo "$line" |awk '{print $2}')
-		gi=$(echo "$line" |awk '{print $3}')
 		echo "working on $fasta  ($i/$total)"
 
-		if [ "$gi" == "" ];then
-			sed "s/>/>ti|$ti|/g" $fasta > tmp
-				case $multiway in
-				"0")
-					mv tmp new_$fasta
-				;;
-				"1")
-					rm $fasta
-					mv tmp $fasta
-				;;
-				esac
-		else
-			sed "s/>/>ti|$ti|gi|$gi|/g" $fasta > tmp
-				case $multiway in
-				"0")
-					mv tmp new_$fasta
-				;;
-				"1")
-					rm $fasta
-					mv tmp $fasta
-				;;
-				esac
-		fi
-		i=$((i+1))
-		
+		sed "s/>/>ti|$ti|/g" $fasta > tmp
+			case $multiway in
+			"0")
+				mv tmp new_$fasta
+			;;
+			"1")
+				rm $fasta
+				mv tmp $fasta
+			;;
+			esac
+
+		i=$((i+1))	
 	done < <(grep "" $switchfile)
 
 ###################		MERGE FASTAS		############################
@@ -317,7 +328,7 @@ if [ $((statusband)) -eq 1 ]; then
 		mv $multifname.new new_$multifname
 		mv new_$multifname ../.
 		cd ..
-		rm -rf $multifname""_TMP_FOLDER_DONT_TOUCH
+		rm -rf $multifname""_TMP_FOLDER_DONT_TOUCH $switchfile
 	;;
 	esac
 
