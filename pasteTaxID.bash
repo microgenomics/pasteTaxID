@@ -192,6 +192,9 @@ if [ $((statusband)) -eq 1 ]; then
 		#first, we get the critical data through awk and the ID that we find
 		fasta=$(echo $line |awk '{print $1}')
 		fastaheader=$(echo $line |awk '{print $2}')
+		acc=$(echo "$fastaheader" |awk -v ID="acc" -f parsefasta.awk &)
+		lastpid=$!
+		pids[0]="$lastpid"
 		gi=$(echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk &)
 		lastpid=$!
 		pids[0]="$lastpid"
@@ -219,7 +222,7 @@ if [ $((statusband)) -eq 1 ]; then
 			echo "Tax Id exist in $fasta, continue"
 			echo "$fasta $ti" >> $switchfile
 		else
-			if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == "" ] && [ "$ref" == "" ];then
+			if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == "" ] && [ "$ref" == "" ] && [ "$acc" == "" ];then
 				#trying first string as Accession number
 				ac=$(echo "$fastaheader" |awk '{gsub(">","");print $1}')
 				ti=""
@@ -236,6 +239,19 @@ if [ $((statusband)) -eq 1 ]; then
 				fi
 
 			else
+				if [ "$acc" != "" ];then
+					ti=""
+					while [ "$ti" == "" ]
+					do
+						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
+					done
+					
+					echo "$fasta $ti" >> $switchfile
+
+					gb=""
+					emb=""
+					dbj=""					
+				fi
 				if [ "$gi" != "" ];then
 					ti=""
 					while [ "$ti" == "" ]
