@@ -21,7 +21,7 @@ However, if you have a multifasta file, the appropriate command line is:
 
 where `--workpath` is a directory where your fasta files are located and `--multifasta` is the multifasta file (.fna, .fn or .fasta works too). 
 
-In the example folder there are some fasta files that don't contain a gi or a ti, just gb. Try testing the script by issueing
+In the example folder there are some fasta files that don't contain a gi or a ti, just gb. Try testing the script by issuing
 
 	bash PasteTaxID.bash --workpath example
 
