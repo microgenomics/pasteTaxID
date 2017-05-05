@@ -13,7 +13,7 @@ pasteTaxID can take large multifasta files (we have tried more than 150000 witho
 ## Usage
 There are two ways of running the script. If you have a directory with individual fasta files, then use the following strategy:  
 
-    bash pasteTaxID.bash --workpath [directory_fastas]
+    bash pasteTaxID.bash --workdir [directory_fastas]
 
 However, if you have a multifasta file, the appropriate command line is:  
 
