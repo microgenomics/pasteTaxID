@@ -23,7 +23,7 @@ where `--workpath` is a directory where your fasta files are located and `--mult
 
 In the example folder there are some fasta files that don't contain a gi or a ti, just gb. Try testing the script by issuing
 
-	bash PasteTaxID.bash --workpath example
+	bash PasteTaxID.bash --workdir example
 
 Wait a few seconds and check the fastas again. Now  you should see taxonomy id's and gi's appended to the fasta entries.
 
