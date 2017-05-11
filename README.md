@@ -1,6 +1,6 @@
 ![banner](https://raw.githubusercontent.com/microgenomics/tutorials/master/img/microgenomics.png)
 
-##We are working on new release please be patient
+##We are fixing the new links to fetch ncbi IDs
 
 # pasteTaxID
 ------------
