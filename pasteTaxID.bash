@@ -1,5 +1,5 @@
 #######################################################################################################################
-#Autor: Sandro Valenzuela (sanrrone@hotmail.com)
+#Autor: Sandro Valenzuela (sandrolvalenzuelad@gmail.com)
 #pasteTaxID have 2 usage
 #Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir
 #Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)
@@ -319,7 +319,7 @@ if [ $((statusband)) -eq 1 ]; then
 		ti=$(echo "$line" |awk '{print $2}')
 		echo "working on $fasta  ($i/$total)"
 
-		sed "s/>/>ti|$ti|/g" $fasta > tmp
+		sed "s/>/>ti\|$ti\|/g" $fasta > tmp
 			case $multiway in
 			"0")
 				mv tmp new_$fasta
