@@ -58,7 +58,7 @@ if($1~">"){
 }
 
 function makeMergeWork {
-	echo '#!/usr/bin/python
+echo '#!/usr/bin/python
 
 import glob,os
 import sys
@@ -77,10 +77,142 @@ else:
 	print "Workpath and file_out are needed";' > merge.py
 }
 
+function fetchFunction {
+fileout=$1
+switchfile=$2
+declare pids
+
+cat $fileout |while read line
+do
+	echo "fetching taxid ($i of $total)"
+	#first, we get the critical data through awk and the ID that we find
+	fasta=$(echo $line |awk '{print $1}')
+	fastaheader=$(echo $line |awk '{print $2}')
+	acc=$(echo "$fastaheader" |awk -v ID="acc" -f parsefasta.awk &)
+	lastpid=$!
+	pids[0]="$lastpid"
+	gi=$(echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk &)
+	lastpid=$!
+	pids[0]="$lastpid"
+	ti=$(echo "$fastaheader" |awk -v ID="ti" -f parsefasta.awk &)
+	lastpid=$!
+	pids[1]="$lastpid"
+	gb=$(echo "$fastaheader" |awk -v ID="gb" -f parsefasta.awk &)
+	lastpid=$!
+	pids[2]="$lastpid"
+	emb=$(echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk &)
+	lastpid=$!
+	pids[3]="$lastpid"
+	ref=$(echo "$fastaheader" |awk -v ID="ref" -f parsefasta.awk &)
+	lastpid=$!
+	pids[4]="$lastpid"
+
+	for pid in "${pids[@]}"
+	do
+		while [[ ( -d /proc/$pid ) && ( -z "grep zombie /proc/$pid/status" ) ]]; do
+       		sleep 0.1
+   		done
+	done
+	#the purpose this script is get the tax id, if exist just continue with next fasta
+	if [  "$ti" != "" ];then
+		echo "Tax Id exist in $fasta, continue"
+		echo "$fasta $ti" >> $switchfile
+	else
+		if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == "" ] && [ "$ref" == "" ] && [ "$acc" == "" ];then
+			#trying first string as Accession number
+			ac=$(echo "$fastaheader" |awk '{gsub(">","");print $1}')
+			ti=""
+			while [ "$ti" == "" ]
+			do
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sequences&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
+			done
+
+			if [  "$ti" != "" ];then
+				echo "$fasta $ti" >> $switchfile
+			else
+				echo "No id to fetch is available, stop the proccess"
+				exit
+			fi
+
+		else
+			if [ "$acc" != "" ];then
+				ti=""
+				while [ "$ti" == "" ]
+				do
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
+				done
+				
+				echo "$fasta $ti" >> $switchfile
+
+				gb=""
+				emb=""
+				dbj=""					
+			fi
+			if [ "$gi" != "" ];then
+				ti=""
+				while [ "$ti" == "" ]
+				do
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
+				done
+
+				if [ "$ti" == "$gi" ];then
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '{print $2}' |head -n1)
+				fi
+				
+				echo "$fasta $ti" >> $switchfile
+
+				gb=""
+				emb=""
+				dbj=""					
+			fi
+			
+			if [ "$emb" != "" ];then
+				ti=""
+				while [ "$ti" == "" ]
+				do
+					gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
+				done
+				echo "$fasta $ti" >> $switchfile
+
+				gb=""
+			fi
+			
+			if [ "$gb" != "" ];then
+				ti=""
+				while [ "$ti" == "" ]
+				do
+					gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
+				done
+				echo "$fasta $ti" >> $switchfile
+				ref=""			
+
+			fi	
+
+			if [ "$ref" != "" ];then
+				ti=""
+				while [ "$ti" == "" ]
+				do
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
+				done
+				echo "$fasta $ti" >> $switchfile				
+
+			fi								
+		fi
+	fi
+	
+	i=$((i+1))
+done
+
+}
+
 statusband=0
 workpathband=0
 multifband=0
 multiway=0
+pbin=0
+PYTHONBIN=/usr/bin/python
 for i in "$@"
 do
 	case $i in
@@ -90,9 +222,14 @@ do
 	"--multifasta")
 		multifband=1
 	;;
+	"--pythonBin")
+		phome=1
+	;;
 	"--help")
 		echo "Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
 		echo "Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)"
+		echo "Usage 3: bash parseTaxID.bash --multifasta [multifasta_file] --pythonBin to provide a python v2.7"
+
 		echo "Note: --workdir will take your fastas and put the tax id in the same file, make sure you have a backup of files."
 		exit
 
@@ -123,6 +260,11 @@ do
 			fi
 		fi
 
+		if [ $((pbin)) -eq 1 ];then
+			statusband=$((statusband+1))
+			phome=0
+			PYTHONBIN=$i
+		fi
 	esac
 done
 
@@ -169,11 +311,11 @@ if [ $((statusband)) -eq 1 ]; then
 	case $multiway in
 		"0")
 			#workpath
-			python appendheaders.py "." $fileout	#just take the first line of each fasta (>foo|1234|lorem ipsum)
+			$PYTHONBIN appendheaders.py "." $fileout	#just take the first line of each fasta (>foo|1234|lorem ipsum)
 		;;
 		"1")
 			#multif
-			python appendheaders.py $WORKDIR $fileout	#just take the first line of each fasta (>foo|1234|lorem ipsum)
+			$PYTHONBIN appendheaders.py $WORKDIR $fileout	#just take the first line of each fasta (>foo|1234|lorem ipsum)
 		;;
 	esac
 	
@@ -184,132 +326,38 @@ if [ $((statusband)) -eq 1 ]; then
 	total=$(wc -l $fileout |awk '{print $1}')
 	i=1
 	makeAwkWork
-	declare pids
 
-	while read line
-	do
-		echo "fetching taxid ($i of $total)"
-		#first, we get the critical data through awk and the ID that we find
-		fasta=$(echo $line |awk '{print $1}')
-		fastaheader=$(echo $line |awk '{print $2}')
-		acc=$(echo "$fastaheader" |awk -v ID="acc" -f parsefasta.awk &)
-		lastpid=$!
-		pids[0]="$lastpid"
-		gi=$(echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk &)
-		lastpid=$!
-		pids[0]="$lastpid"
-		ti=$(echo "$fastaheader" |awk -v ID="ti" -f parsefasta.awk &)
-		lastpid=$!
-		pids[1]="$lastpid"
-		gb=$(echo "$fastaheader" |awk -v ID="gb" -f parsefasta.awk &)
-		lastpid=$!
-		pids[2]="$lastpid"
-		emb=$(echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk &)
-		lastpid=$!
-		pids[3]="$lastpid"
-		ref=$(echo "$fastaheader" |awk -v ID="ref" -f parsefasta.awk &)
-		lastpid=$!
-		pids[4]="$lastpid"
 
-		for pid in "${pids[@]}"
+	if [ $((total)) -ge 4 ]; then
+		#xaa xab xac xad
+		split -l $total $fileout
+		declare gpids
+		fetchFunction xaa $switchfile &
+		lastgpid=$!
+		gpids[0]="$lastgpid"
+		fetchFunction xab $switchfile &
+		lastgpid=$!
+		gpids[0]="$lastgpid"
+		fetchFunction xac $switchfile &
+		lastgpid=$!
+		gpids[0]="$lastgpid"
+		fetchFunction xad $switchfile &
+		lastgpid=$!
+		gpids[0]="$lastgpid"
+
+		for id in "${gpids[@]}"
 		do
-			while [[ ( -d /proc/$pid ) && ( -z "grep zombie /proc/$pid/status" ) ]]; do
-            	sleep 0.1
-        	done
-		done
-		#the purpose this script is get the tax id, if exist just continue with next fasta
-		if [  "$ti" != "" ];then
-			echo "Tax Id exist in $fasta, continue"
-			echo "$fasta $ti" >> $switchfile
-		else
-			if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == "" ] && [ "$ref" == "" ] && [ "$acc" == "" ];then
-				#trying first string as Accession number
-				ac=$(echo "$fastaheader" |awk '{gsub(">","");print $1}')
-				ti=""
-				while [ "$ti" == "" ]
-				do
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sequences&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
-				done
+			while [[ ( -d /proc/$id ) && ( -z "grep zombie /proc/$id/status" ) ]]
+			do
+				sleep 10
+			done
+	   	done
 
-				if [  "$ti" != "" ];then
-					echo "$fasta $ti" >> $switchfile
-				else
-					echo "No id to fetch is available, stop the proccess"
-					exit
-				fi
-
-			else
-				if [ "$acc" != "" ];then
-					ti=""
-					while [ "$ti" == "" ]
-					do
-						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
-					done
-					
-					echo "$fasta $ti" >> $switchfile
-
-					gb=""
-					emb=""
-					dbj=""					
-				fi
-				if [ "$gi" != "" ];then
-					ti=""
-					while [ "$ti" == "" ]
-					do
-						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
-					done
-
-					if [ "$ti" == "$gi" ];then
-						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '{print $2}' |head -n1)
-					fi
-					
-					echo "$fasta $ti" >> $switchfile
-
-					gb=""
-					emb=""
-					dbj=""					
-				fi
-				
-				if [ "$emb" != "" ];then
-					ti=""
-					while [ "$ti" == "" ]
-					do
-						gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
-						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
-					done
-					echo "$fasta $ti" >> $switchfile
-
-					gb=""
-				fi
-				
-				if [ "$gb" != "" ];then
-					ti=""
-					while [ "$ti" == "" ]
-					do
-						gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
-						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
-					done
-					echo "$fasta $ti" >> $switchfile
-					ref=""			
-
-				fi	
-
-				if [ "$ref" != "" ];then
-					ti=""
-					while [ "$ti" == "" ]
-					do
-						ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
-					done
-					echo "$fasta $ti" >> $switchfile				
-
-				fi								
-				
-			fi
-		fi
-		
-		i=$((i+1))
-	
-	done < <(grep "" $fileout)
+	   	echo "deleting files"
+	   	rm xaa xab xac xad
+	else
+		fetchFunction $fileout $switchfile
+	fi
 ####################		ADD ID's		##########################	
 	i=1
 	total=$(wc -l $switchfile |awk '{print $1}')
@@ -341,7 +389,7 @@ if [ $((statusband)) -eq 1 ]; then
 	;;
 	"1")
 		makeMergeWork
-		python merge.py $WORKDIR $multifname.new
+		$PYTHONBIN merge.py $WORKDIR $multifname.new
 		mv $multifname.new new_$multifname
 		mv new_$multifname ../.
 		cd ..
