@@ -81,10 +81,11 @@ function fetchFunction {
 echo '
 headers=$1
 switchfile=$2
+total=$(wc -l $headers |awk '\''{print $1}'\'')
 declare pids
 cat $headers |while read line
 do
-	echo "fetching taxid ($i of $total)"
+	echo "fetching taxid on $headers $i of $total"
 	#first, we get the critical data through awk and the ID that we find
 	fasta=$(echo $line |awk '\''{print $1}'\'')
 	fastaheader=$(echo $line |awk '\''{print $2}'\'')
@@ -109,9 +110,20 @@ do
 
 	for pid in "${pids[@]}"
 	do
-		while [[ ( -d /proc/$pid ) && ( -z "grep zombie /proc/$pid/status" ) ]]; do
-       		sleep 0.1
-   		done
+			unameOut="$(uname -s)"
+			case "${unameOut}" in
+			    Linux*)
+					while [[ ( -d /proc/"$pid" ) && ( -z "grep zombie /proc/$pid/status" ) ]]
+					do
+						sleep 10
+					done
+				;;
+			    Darwin*)    
+					lsof -p $pid +r 1 &>/dev/null
+				;;
+			    *)
+					echo "Not compatible OS"
+			esac
 	done
 	#the purpose this script is get the tax id, if exist just continue with next fasta
 	if [  "$ti" != "" ];then
@@ -247,9 +259,9 @@ do
 			statusband=$((statusband+1))
 			multifband=0
 			multiway=1
-			actual=`pwd`
-			multifname=`echo "$i" |rev |cut -d '/' -f 1 |rev`
-			multffolder=`echo "$i" |rev |cut -d '/' -f 2- |rev`
+			actual=$(pwd)
+			multifname=$(echo "$i" |rev |cut -d '/' -f 1 |rev)
+			multffolder=$(echo "$i" |rev |cut -d '/' -f 2- |rev)
 			if [ "$multifname" == "$multffolder" ];then
 				multif=$multifname
 			else
@@ -321,7 +333,7 @@ if [ $((statusband)) -eq 1 ]; then
 
 ######################		FETCH ID		##########################
 
-	export switchfile="newheader.txt"
+	switchfile="newheader.txt"
 	touch $switchfile
 	total=$(wc -l $fileout |awk '{print $1}')
 	makeAwkWork
@@ -343,10 +355,23 @@ if [ $((statusband)) -eq 1 ]; then
 
 		for id in "${gpids[@]}"
 		do
-			while [[ ( -d /proc/$id ) && ( -z "grep zombie /proc/$id/status" ) ]]
-			do
-				sleep 5
-			done
+			unameOut="$(uname -s)"
+			case "${unameOut}" in
+			    Linux*)
+					while [[ ( -d /proc/"$id" ) && ( -z "grep zombie /proc/$id/status" ) ]]
+					do
+						sleep 10
+					done
+				;;
+			    Darwin*)    
+					lsof -p $id +r 1 &>/dev/null
+				;;
+			    *)
+					echo "Not compatible OS"
+			esac
+			
+			
+
 		done
 		rm xaa xab xac xad
 
