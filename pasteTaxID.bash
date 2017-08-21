@@ -78,34 +78,34 @@ else:
 }
 
 function fetchFunction {
-fileout=$1
+echo '
+headers=$1
 switchfile=$2
 declare pids
-
-cat $fileout |while read line
+cat $headers |while read line
 do
 	echo "fetching taxid ($i of $total)"
 	#first, we get the critical data through awk and the ID that we find
-	fasta=$(echo $line |awk '{print $1}')
-	fastaheader=$(echo $line |awk '{print $2}')
+	fasta=$(echo $line |awk '\''{print $1}'\'')
+	fastaheader=$(echo $line |awk '\''{print $2}'\'')
 	acc=$(echo "$fastaheader" |awk -v ID="acc" -f parsefasta.awk &)
 	lastpid=$!
 	pids[0]="$lastpid"
 	gi=$(echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk &)
 	lastpid=$!
-	pids[0]="$lastpid"
+	pids[1]="$lastpid"
 	ti=$(echo "$fastaheader" |awk -v ID="ti" -f parsefasta.awk &)
 	lastpid=$!
-	pids[1]="$lastpid"
+	pids[2]="$lastpid"
 	gb=$(echo "$fastaheader" |awk -v ID="gb" -f parsefasta.awk &)
 	lastpid=$!
-	pids[2]="$lastpid"
+	pids[3]="$lastpid"
 	emb=$(echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk &)
 	lastpid=$!
-	pids[3]="$lastpid"
+	pids[4]="$lastpid"
 	ref=$(echo "$fastaheader" |awk -v ID="ref" -f parsefasta.awk &)
 	lastpid=$!
-	pids[4]="$lastpid"
+	pids[5]="$lastpid"
 
 	for pid in "${pids[@]}"
 	do
@@ -120,11 +120,11 @@ do
 	else
 		if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == "" ] && [ "$ref" == "" ] && [ "$acc" == "" ];then
 			#trying first string as Accession number
-			ac=$(echo "$fastaheader" |awk '{gsub(">","");print $1}')
+			ac=$(echo "$fastaheader" |awk '\''{gsub(">","");print $1}'\'')
 			ti=""
 			while [ "$ti" == "" ]
 			do
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sequences&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sequences&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
 			done
 
 			if [  "$ti" != "" ];then
@@ -139,7 +139,7 @@ do
 				ti=""
 				while [ "$ti" == "" ]
 				do
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
 				done
 				
 				echo "$fasta $ti" >> $switchfile
@@ -152,11 +152,11 @@ do
 				ti=""
 				while [ "$ti" == "" ]
 				do
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
 				done
 
 				if [ "$ti" == "$gi" ];then
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '{print $2}' |head -n1)
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '\''{print $2}'\'' |head -n1)
 				fi
 				
 				echo "$fasta $ti" >> $switchfile
@@ -171,7 +171,7 @@ do
 				while [ "$ti" == "" ]
 				do
 					gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
 				done
 				echo "$fasta $ti" >> $switchfile
 
@@ -183,7 +183,7 @@ do
 				while [ "$ti" == "" ]
 				do
 					gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
 				done
 				echo "$fasta $ti" >> $switchfile
 				ref=""			
@@ -194,16 +194,16 @@ do
 				ti=""
 				while [ "$ti" == "" ]
 				do
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '>' -f 2 |cut -d '<' -f 1 )
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
 				done
-				echo "$fasta $ti" >> $switchfile				
+				echo "$fasta $ti" >> $switchfile
 
 			fi								
 		fi
 	fi
 	
 	i=$((i+1))
-done
+done' > fetch.bash
 
 }
 
@@ -303,8 +303,6 @@ if [ $((statusband)) -eq 1 ]; then
 
 
 	fileout="headers.txt"
-	switchfile="newheader.txt"
-	touch $switchfile
 	echo "making headers from fastas"
 	cd $WORKDIR
 	makePythonWork
@@ -323,41 +321,40 @@ if [ $((statusband)) -eq 1 ]; then
 
 ######################		FETCH ID		##########################
 
+	export switchfile="newheader.txt"
+	touch $switchfile
 	total=$(wc -l $fileout |awk '{print $1}')
-	i=1
 	makeAwkWork
-
+	fetchFunction
 
 	if [ $((total)) -ge 4 ]; then
 		#xaa xab xac xad
+		total=$(echo $total |awk '{print $1/4}' )
 		split -l $total $fileout
 		declare gpids
-		fetchFunction xaa $switchfile &
-		lastgpid=$!
+		bash fetch.bash "xaa" $switchfile & lastgpid=$!
 		gpids[0]="$lastgpid"
-		fetchFunction xab $switchfile &
-		lastgpid=$!
-		gpids[0]="$lastgpid"
-		fetchFunction xac $switchfile &
-		lastgpid=$!
-		gpids[0]="$lastgpid"
-		fetchFunction xad $switchfile &
-		lastgpid=$!
-		gpids[0]="$lastgpid"
+		bash fetch.bash "xab" $switchfile & lastgpid=$!
+		gpids[1]="$lastgpid"
+		bash fetch.bash "xac" $switchfile & lastgpid=$!
+		gpids[2]="$lastgpid"
+		bash fetch.bash "xad" $switchfile & lastgpid=$!
+		gpids[3]="$lastgpid"
 
 		for id in "${gpids[@]}"
 		do
 			while [[ ( -d /proc/$id ) && ( -z "grep zombie /proc/$id/status" ) ]]
 			do
-				sleep 10
+				sleep 5
 			done
-	   	done
+		done
+		rm xaa xab xac xad
 
-	   	echo "deleting files"
-	   	rm xaa xab xac xad
 	else
-		fetchFunction $fileout $switchfile
+		bash fetch.bash $fileout $switchfile
 	fi
+
+	rm fetch.bash
 ####################		ADD ID's		##########################	
 	i=1
 	total=$(wc -l $switchfile |awk '{print $1}')
