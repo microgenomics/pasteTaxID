@@ -83,6 +83,7 @@ headers=$1
 switchfile=$2
 total=$(wc -l $headers |awk '\''{print $1}'\'')
 declare pids
+i=1
 cat $headers |while read line
 do
 	echo "fetching taxid on $headers $i of $total"
@@ -119,7 +120,10 @@ do
 					done
 				;;
 			    Darwin*)    
-					lsof -p $pid +r 1 &>/dev/null
+					while kill -0 $id >/dev/null 2>&1
+					do
+					    sleep 10
+					done
 				;;
 			    *)
 					echo "Not compatible OS"
@@ -357,7 +361,6 @@ if [ $((statusband)) -eq 1 ]; then
 	fetchFunction
 
 	if [ $((total)) -ge $((parallelJ)) ]; then
-		#xaa xab xac xad
 		total=$(echo $total |awk -v parallelJ=$parallelJ '{print $1/parallelJ}' )
 		split -l $total $fileout
 		declare gpids
@@ -380,14 +383,15 @@ if [ $((statusband)) -eq 1 ]; then
 					done
 				;;
 			    Darwin*)    
-					lsof -p $id +r 1 &>/dev/null
+					while kill -0 $id >/dev/null 2>&1
+					do
+					    sleep 10
+					done
 				;;
 			    *)
 					echo "Not compatible OS"
 			esac
 			
-			
-
 		done
 		rm xa[a-z]
 
