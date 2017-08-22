@@ -247,7 +247,7 @@ do
 		echo "Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
 		echo "Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)"
 		echo "Usage 3: bash parseTaxID.bash --multifasta [multifasta_file] --pythonBin to provide a python v2.7"
-		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time"
+		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time (default 10. Max 25)"
 
 		echo "Note: --workdir will take your fastas and put the tax id in the same file, make sure you have a backup of files."
 		exit
@@ -280,15 +280,19 @@ do
 		fi
 
 		if [ $((pbin)) -eq 1 ];then
-			statusband=$((statusband+1))
 			phome=0
 			PYTHONBIN=$i
 		fi
 
 		if [ $((parallelband)) -eq 1 ];then
-			statusband=$((statusband+1))
 			parallelband=0
 			parallelJ=$i
+			if [ $((parallelJ)) -ge 26 ];then
+				parallelJ=25
+			fi
+			if [ $((parallelJ)) -le 0 ];then
+				parallelJ=5
+			fi
 		fi
 	esac
 done
