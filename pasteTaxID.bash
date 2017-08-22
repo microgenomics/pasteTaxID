@@ -251,7 +251,7 @@ do
 		echo "Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
 		echo "Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)"
 		echo "Usage 3: bash parseTaxID.bash --multifasta [multifasta_file] --pythonBin to provide a python v2.7"
-		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time (default 10. Max 25)"
+		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time (default 5, max 50)"
 
 		echo "Note: --workdir will take your fastas and put the tax id in the same file, make sure you have a backup of files."
 		exit
@@ -291,11 +291,11 @@ do
 		if [ $((parallelband)) -eq 1 ];then
 			parallelband=0
 			parallelJ=$i
-			if [ $((parallelJ)) -ge 26 ];then
-				parallelJ=25
-			fi
 			if [ $((parallelJ)) -le 0 ];then
 				parallelJ=5
+			fi
+			if [ $((parallelJ)) -ge 50 ];then
+				parallelJ=50
 			fi
 		fi
 	esac
@@ -361,11 +361,11 @@ if [ $((statusband)) -eq 1 ]; then
 	fetchFunction
 
 	if [ $((total)) -ge $((parallelJ)) ]; then
-		total=$(echo $total |awk -v parallelJ=$parallelJ '{print $1/parallelJ}' )
+		total=$(echo $total |awk -v parallelJ=$parallelJ '{print int($1/parallelJ)}' )
 		split -l $total $fileout
 		declare gpids
 		i=0
-		for Xchunks in $(ls -1 xa[a-z])
+		for Xchunks in $(ls -1 x[a-z][a-z])
 		do
 			bash fetch.bash $Xchunks $switchfile & lastgpid=$!
 			gpids[$i]="$lastgpid"
@@ -393,7 +393,7 @@ if [ $((statusband)) -eq 1 ]; then
 			esac
 			
 		done
-		rm xa[a-z]
+		rm x[a-z][a-z]
 
 	else
 		bash fetch.bash $fileout $switchfile
