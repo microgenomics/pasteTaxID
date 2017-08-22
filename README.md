@@ -36,9 +36,9 @@ Additionally there is a complete way (two more parameters). If your default pyth
 
 And finally, you can set the number of parallel process to improve the fetch speed (Max jobs: 60).
 
-	bash pasteTaxID.bash --multifasta myfasta.fasta --parallelJobs 60
+	bash pasteTaxID.bash --multifasta myfasta.fasta --parallelJobs 40
 
-This fetch 50 IDs at the same time.
+This fetch 40 IDs at the same time (max number you can set: 40).
 
 ### Notes
 * If you have a huge multifasta (> million fasta entries), go for a coffee (or 2) while the script runs.

@@ -294,8 +294,8 @@ do
 			if [ $((parallelJ)) -le 0 ];then
 				parallelJ=5
 			fi
-			if [ $((parallelJ)) -ge 50 ];then
-				parallelJ=50
+			if [ $((parallelJ)) -ge 40 ];then
+				parallelJ=40
 			fi
 		fi
 	esac
