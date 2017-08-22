@@ -38,7 +38,7 @@ And finally, you can set the number of parallel process to improve the fetch spe
 
 	bash pasteTaxID.bash --multifasta myfasta.fasta --parallelJobs 60
 
-This fetch 60 IDs at the same time.
+This fetch 50 IDs at the same time.
 
 ### Notes
 * If you have a huge multifasta (> million fasta entries), go for a coffee (or 2) while the script runs.
