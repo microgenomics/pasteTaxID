@@ -225,6 +225,9 @@ multifband=0
 multiway=0
 pbin=0
 PYTHONBIN=/usr/bin/python
+parallelJ=5
+parallelband=0
+
 for i in "$@"
 do
 	case $i in
@@ -237,10 +240,14 @@ do
 	"--pythonBin")
 		phome=1
 	;;
+	"--parallelJobs")
+		parallelband=1
+	;;
 	"--help")
 		echo "Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
 		echo "Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)"
 		echo "Usage 3: bash parseTaxID.bash --multifasta [multifasta_file] --pythonBin to provide a python v2.7"
+		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time"
 
 		echo "Note: --workdir will take your fastas and put the tax id in the same file, make sure you have a backup of files."
 		exit
@@ -252,7 +259,7 @@ do
 			statusband=$((statusband+1))
 			workpathband=0
 			WORKDIR=$i
-			EXECUTEWORKDIR=`pwd`
+			EXECUTEWORKDIR=$(pwd)
 		fi
 
 		if [ $((multifband)) -eq 1 ];then
@@ -266,7 +273,7 @@ do
 				multif=$multifname
 			else
 				cd $multffolder
-				multffolder=`pwd`
+				multffolder=$(pwd)
 				cd $actual
 				multif="$multffolder/$multifname"
 			fi
@@ -276,6 +283,12 @@ do
 			statusband=$((statusband+1))
 			phome=0
 			PYTHONBIN=$i
+		fi
+
+		if [ $((parallelband)) -eq 1 ];then
+			statusband=$((statusband+1))
+			parallelband=0
+			parallelJ=$i
 		fi
 	esac
 done
@@ -339,19 +352,18 @@ if [ $((statusband)) -eq 1 ]; then
 	makeAwkWork
 	fetchFunction
 
-	if [ $((total)) -ge 4 ]; then
+	if [ $((total)) -ge $((parallelJ)) ]; then
 		#xaa xab xac xad
-		total=$(echo $total |awk '{print $1/4}' )
+		total=$(echo $total |awk -v parallelJ=$parallelJ '{print $1/parallelJ}' )
 		split -l $total $fileout
 		declare gpids
-		bash fetch.bash "xaa" $switchfile & lastgpid=$!
-		gpids[0]="$lastgpid"
-		bash fetch.bash "xab" $switchfile & lastgpid=$!
-		gpids[1]="$lastgpid"
-		bash fetch.bash "xac" $switchfile & lastgpid=$!
-		gpids[2]="$lastgpid"
-		bash fetch.bash "xad" $switchfile & lastgpid=$!
-		gpids[3]="$lastgpid"
+		i=0
+		for Xchunks in $(ls -1 xa[a-z])
+		do
+			bash fetch.bash $Xchunks $switchfile & lastgpid=$!
+			gpids[$i]="$lastgpid"
+			i=$((i+1))
+		done
 
 		for id in "${gpids[@]}"
 		do
@@ -373,7 +385,7 @@ if [ $((statusband)) -eq 1 ]; then
 			
 
 		done
-		rm xaa xab xac xad
+		rm xa[a-z]
 
 	else
 		bash fetch.bash $fileout $switchfile
@@ -383,7 +395,7 @@ if [ $((statusband)) -eq 1 ]; then
 ####################		ADD ID's		##########################	
 	i=1
 	total=$(wc -l $switchfile |awk '{print $1}')
-	while read line
+	cat $switchfile |while read line
 	do
 		fasta=$(echo "$line" |awk '{print $1}')
 		ti=$(echo "$line" |awk '{print $2}')
@@ -401,7 +413,7 @@ if [ $((statusband)) -eq 1 ]; then
 			esac
 
 		i=$((i+1))	
-	done < <(grep "" $switchfile)
+	done
 
 ###################		MERGE FASTAS		############################
 	#python merge.py folder_files file_out_name
@@ -419,7 +431,7 @@ if [ $((statusband)) -eq 1 ]; then
 	;;
 	esac
 
-	echo "Done"
+	echo "Done :D"
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
 	exit
