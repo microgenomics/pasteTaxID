@@ -90,46 +90,23 @@ do
 	#first, we get the critical data through awk and the ID that we find
 	fasta=$(echo $line |awk '\''{print $1}'\'')
 	fastaheader=$(echo $line |awk '\''{print $2}'\'')
-	acc=$(echo "$fastaheader" |awk -v ID="acc" -f parsefasta.awk &)
-	lastpid=$!
-	pids[0]="$lastpid"
-	gi=$(echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk &)
-	lastpid=$!
-	pids[1]="$lastpid"
-	ti=$(echo "$fastaheader" |awk -v ID="ti" -f parsefasta.awk &)
-	lastpid=$!
-	pids[2]="$lastpid"
-	gb=$(echo "$fastaheader" |awk -v ID="gb" -f parsefasta.awk &)
-	lastpid=$!
-	pids[3]="$lastpid"
-	emb=$(echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk &)
-	lastpid=$!
-	pids[4]="$lastpid"
-	ref=$(echo "$fastaheader" |awk -v ID="ref" -f parsefasta.awk &)
-	lastpid=$!
-	pids[5]="$lastpid"
+	ti=$(echo "$fastaheader" |awk -v ID="ti" -f parsefasta.awk)
+	if [ "$ti" == "" ];then
+		acc=$(echo "$fastaheader" |awk -v ID="acc" -f parsefasta.awk)
+			if [ "$acc" == "" ];then
+					gi=$(echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk)
+					if [ "$gi" == "" ];then
+							gb=$(echo "$fastaheader" |awk -v ID="gb" -f parsefasta.awk)
+							if [ "$gb" == "" ];then
+									emb=$(echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk)
+									if [ "$emb" == "" ];then
+										ref=$(echo "$fastaheader" |awk -v ID="ref" -f parsefasta.awk)
+									fi
+							fi
+					fi
+			fi
+	fi
 
-	for pid in "${pids[@]}"
-	do
-			unameOut="$(uname -s)"
-			case "${unameOut}" in
-			    Linux*)
-					while [[ ( -d /proc/"$pid" ) && ( -z "grep zombie /proc/$pid/status" ) ]]
-					do
-						sleep 10
-					done
-				;;
-			    Darwin*)    
-					while kill -0 $id >/dev/null 2>&1
-					do
-					    sleep 10
-					done
-				;;
-			    *)
-					echo "Not compatible OS"
-			esac
-	done
-	#the purpose this script is get the tax id, if exist just continue with next fasta
 	if [  "$ti" != "" ];then
 		echo "Tax Id exist in $fasta, continue"
 		echo "$fasta $ti" >> $switchfile
@@ -257,6 +234,16 @@ do
 		exit
 
 	;;
+	"-h")
+		echo "Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
+		echo "Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)"
+		echo "Usage 3: bash parseTaxID.bash --multifasta [multifasta_file] --pythonBin to provide a python v2.7"
+		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time (default 5, max 50)"
+
+		echo "Note: --workdir will take your fastas and put the tax id in the same file, make sure you have a backup of files."
+		exit
+
+	;;
 	*)
 		
 		if [ $((workpathband)) -eq 1 ];then
@@ -315,7 +302,7 @@ if [ $((statusband)) -eq 1 ]; then
 			mkdir $multifname""_TMP_FOLDER_DONT_TOUCH
 			cd $multifname""_TMP_FOLDER_DONT_TOUCH
 			awk '/^>/{close(s);s=++d".fasta"} {print > s}' ../$multif
-			echo "Splitting complete, DON'T TOUCH $multifname_TMP_FOLDER WHILE SCRIPT IS RUNNING"
+			echo "* Splitting complete, DON'T TOUCH $multifname_TMP_FOLDER WHILE SCRIPT IS RUNNING"
 			WORKDIR=$(pwd)
 			cd ..
 
