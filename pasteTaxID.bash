@@ -91,110 +91,102 @@ do
 	fasta=$(echo $line |awk '\''{print $1}'\'')
 	fastaheader=$(echo $line |awk '\''{print $2}'\'')
 	ti=$(echo "$fastaheader" |awk -v ID="ti" -f parsefasta.awk)
+	opcion="ti"
 	if [ "$ti" == "" ];then
 		acc=$(echo "$fastaheader" |awk -v ID="acc" -f parsefasta.awk)
+		opcion="acc"
 			if [ "$acc" == "" ];then
 					gi=$(echo "$fastaheader" |awk -v ID="gi" -f parsefasta.awk)
+					opcion="gi"
 					if [ "$gi" == "" ];then
 							gb=$(echo "$fastaheader" |awk -v ID="gb" -f parsefasta.awk)
+							opcion="gb"
 							if [ "$gb" == "" ];then
 									emb=$(echo "$fastaheader" |awk -v ID="emb" -f parsefasta.awk)
+									opcion="emb"
 									if [ "$emb" == "" ];then
 										ref=$(echo "$fastaheader" |awk -v ID="ref" -f parsefasta.awk)
+										opcion="ref"
+										if [ "$ref" == "" ];then
+											opcion=""
+										fi
 									fi
 							fi
 					fi
 			fi
 	fi
-
-	if [  "$ti" != "" ];then
-		echo "Tax Id exist in $fasta, continue"
-		echo "$fasta $ti" >> $switchfile
-	else
-		if [ "$gi" == "" ] && [ "$gb" == "" ] && [ "$emb" == "" ] && [ "$ref" == "" ] && [ "$acc" == "" ];then
-			#trying first string as Accession number
-			ac=$(echo "$fastaheader" |awk '\''{gsub(">","");print $1}'\'')
+	case $opcion in
+		"ti")
+			echo "* Tax Id exist in $fasta, continue"
+			echo "$fasta $ti" >> $switchfile
+		;;
+		"acc")
 			ti=""
 			while [ "$ti" == "" ]
 			do
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sequences&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$acc&rettype=fasta&retmode=xml" |head -n10 |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+			done
+			echo "$fasta $ti" >> $switchfile
+		;;
+		"gi")
+			ti=""
+			while [ "$ti" == "" ]
+			do
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+			done
+
+			if [ "$ti" == "$gi" ];then
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '\''{print $2}'\'' |head -n1)
+			fi
+			
+			echo "$fasta $ti" >> $switchfile
+		;;
+		"gb")
+			ti=""
+			while [ "$ti" == "" ]
+			do
+				gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+			done
+			echo "$fasta $ti" >> $switchfile
+		;;
+		"emb")
+			ti=""
+			while [ "$ti" == "" ]
+			do
+				gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+			done
+			echo "$fasta $ti" >> $switchfile
+		;;
+		"ref")
+			ti=""
+			while [ "$ti" == "" ]
+			do
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+			done
+			echo "$fasta $ti" >> $switchfile
+		;;
+		*)
+		#in case the id is not found
+		#trying first string as Accession number
+		ac=$(echo "$fastaheader" |awk '\''{gsub(">","");print $1}'\'')
+			ti=""
+			while [ "$ti" == "" ]
+			do
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sequences&id=$ac&rettype=fasta&retmode=xml" |head -n10 |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
 			done
 
 			if [  "$ti" != "" ];then
 				echo "$fasta $ti" >> $switchfile
 			else
-				echo "No id to fetch is available, stop the proccess"
+				echo "No id to fetch is available for file $i, stop the proccess"
 				exit
 			fi
+		;;
+	esac
 
-		else
-			if [ "$acc" != "" ];then
-				ti=""
-				while [ "$ti" == "" ]
-				do
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ac&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
-				done
-				
-				echo "$fasta $ti" >> $switchfile
 
-				gb=""
-				emb=""
-				dbj=""					
-			fi
-			if [ "$gi" != "" ];then
-				ti=""
-				while [ "$ti" == "" ]
-				do
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
-				done
-
-				if [ "$ti" == "$gi" ];then
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '\''{print $2}'\'' |head -n1)
-				fi
-				
-				echo "$fasta $ti" >> $switchfile
-
-				gb=""
-				emb=""
-				dbj=""					
-			fi
-			
-			if [ "$emb" != "" ];then
-				ti=""
-				while [ "$ti" == "" ]
-				do
-					gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
-				done
-				echo "$fasta $ti" >> $switchfile
-
-				gb=""
-			fi
-			
-			if [ "$gb" != "" ];then
-				ti=""
-				while [ "$ti" == "" ]
-				do
-					gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
-				done
-				echo "$fasta $ti" >> $switchfile
-				ref=""			
-
-			fi	
-
-			if [ "$ref" != "" ];then
-				ti=""
-				while [ "$ti" == "" ]
-				do
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
-				done
-				echo "$fasta $ti" >> $switchfile
-
-			fi								
-		fi
-	fi
-	
 	i=$((i+1))
 done' > fetch.bash
 
@@ -268,6 +260,10 @@ do
 				cd $actual
 				multif="$multffolder/$multifname"
 			fi
+			if [ ! -f "$multif" ];then
+				echo "* Error: $multif doesn't exist"
+				exit
+			fi
 		fi
 
 		if [ $((pbin)) -eq 1 ];then
@@ -281,8 +277,9 @@ do
 			if [ $((parallelJ)) -le 0 ];then
 				parallelJ=5
 			fi
-			if [ $((parallelJ)) -ge 40 ];then
-				parallelJ=40
+			if [ $((parallelJ)) -ge 101 ];then
+				echo "* Warning: parallelJobs limit is 100, upper values will set down to this value"
+				parallelJ=100
 			fi
 		fi
 	esac
@@ -296,7 +293,7 @@ if [ $((statusband)) -eq 1 ]; then
 		echo "no multifasta specified, continue" 
 	;;
 	"1")
-		echo "splitting multifasta, (if the file is a huge file, you should go for a coffee while the script works"
+		echo "* Splitting multifasta, (if the file is a huge file (~400.000 sequences), you should go for a coffee while the script works"
 		if [ -f $multif ];then
 			rm -fr $multifname""_TMP_FOLDER_DONT_TOUCH
 			mkdir $multifname""_TMP_FOLDER_DONT_TOUCH
@@ -323,7 +320,7 @@ if [ $((statusband)) -eq 1 ]; then
 
 
 	fileout="headers.txt"
-	echo "making headers from fastas"
+	echo "* Making headers from fastas"
 	cd $WORKDIR
 	makePythonWork
 	case $multiway in
@@ -412,6 +409,7 @@ if [ $((statusband)) -eq 1 ]; then
 
 ###################		MERGE FASTAS		############################
 	#python merge.py folder_files file_out_name
+	echo "* Merging chunk files"
 	case $multiway in
 	"0")
 		rm -f appendheaders.py $fileout $switchfile parsefasta.awk
@@ -426,7 +424,7 @@ if [ $((statusband)) -eq 1 ]; then
 	;;
 	esac
 
-	echo "Done :D"
+	echo "* Done :D"
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
 	exit
