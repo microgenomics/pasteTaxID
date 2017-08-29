@@ -79,6 +79,7 @@ else:
 
 function fetchFunction {
 echo '
+set -ex
 headers=$1
 switchfile=$2
 total=$(wc -l $headers |awk '\''{print $1}'\'')
@@ -124,8 +125,11 @@ do
 			ti=""
 			while [ "$ti" == "" ]
 			do
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$acc&rettype=fasta&retmode=xml" |head -n10 |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$acc" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
 			done
+			if [ "$ti" == "" ];then
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?dbfrom=taxonomy&id=$acc&rettype=fasta&retmode=xml" |head -n10 |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+			fi
 			echo "$fasta $ti" >> $switchfile
 		;;
 		"gi")
@@ -277,9 +281,9 @@ do
 			if [ $((parallelJ)) -le 0 ];then
 				parallelJ=5
 			fi
-			if [ $((parallelJ)) -ge 101 ];then
-				echo "* Warning: parallelJobs limit is 100, upper values will set down to this value"
-				parallelJ=100
+			if [ $((parallelJ)) -ge 41 ];then
+				echo "* Warning: parallelJobs limit is 40, upper values will set down to this value"
+				parallelJ=40
 			fi
 		fi
 	esac
@@ -293,7 +297,7 @@ if [ $((statusband)) -eq 1 ]; then
 		echo "no multifasta specified, continue" 
 	;;
 	"1")
-		echo "* Splitting multifasta, (if the file is a huge file (~400.000 sequences), you should go for a coffee while the script works"
+		echo "* Splitting multifasta, (if the file is a huge file (~300.000 or more sequences), you should go for a coffee while the script works"
 		if [ -f $multif ];then
 			rm -fr $multifname""_TMP_FOLDER_DONT_TOUCH
 			mkdir $multifname""_TMP_FOLDER_DONT_TOUCH
