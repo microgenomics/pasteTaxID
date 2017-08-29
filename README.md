@@ -4,7 +4,7 @@ Welcome to the final solution to a lot of headaches :D
 This script will take a multifasta file (or many individual fasta files), then search for common IDs (ti, gi, emb, gb), and append the corresponding ti (and gi if missing) to fasta entries at high speed (10000 entries in just 4 minutes!, depending on your internet connection).
 pasteTaxID can take large multifasta files (we have tried more than 150000 without any problems), avoiding collapsing your system and saving a lot of time!
 
-##Requirements
+## Requirements
 * Bash version 4 (comes with Linux and Mac)
 * Python == 2.7.x
 * Internet connection
