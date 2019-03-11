@@ -39,7 +39,7 @@ Additionally there is a complete way (two more parameters). If your default pyth
 
 	bash pasteTaxID.bash --multifasta myfasta.fasta --pythonBin /home/Peter/programs/python2.7/bin/python
 
-And finally, you can set the number of parallel process to improve the fetch speed (Max jobs: 60).
+And finally, you can set the number of parallel process to improve the fetch speed (Max jobs: 40).
 
 	bash pasteTaxID.bash --multifasta myfasta.fasta --parallelJobs 40
 
