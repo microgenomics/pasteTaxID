@@ -77,17 +77,28 @@ else:
 	print "Workpath and file_out are needed";' > merge.py
 }
 
-function fetchFunction {
+function fetchFunction () {
 echo '
-set -ex
+if [[ "$@" =~ "--debug" ]]; then
+	set -ex
+else
+	set -e
+fi
+apkikey=$4
+function notFoundMessage () {
+	if [ "$1" == "" ];then
+		echo "###### Warning: no ti found for $2 ######"
+	fi
+}
 headers=$1
 switchfile=$2
 total=$(wc -l $headers |awk '\''{print $1}'\'')
 declare pids
 i=1
+connectionRetries=2
 cat $headers |while read line
 do
-	echo "fetching taxid on $headers $i of $total"
+	echo "* process $3: fetching taxid $i of $total"
 	#first, we get the critical data through awk and the ID that we find
 	fasta=$(echo $line |awk '\''{print $1}'\'')
 	fastaheader=$(echo $line |awk '\''{print $2}'\'')
@@ -118,74 +129,89 @@ do
 	fi
 	case $opcion in
 		"ti")
-			echo "* Tax Id exist in $fasta, continue"
+			echo "* Tax Id already found in $fasta, continue"
 			echo "$fasta $ti" >> $switchfile
 		;;
 		"acc")
-			ti=""
-			while [ "$ti" == "" ]
+			retry=$connectionRetries
+			while [ "$ti" == "" ] | [ $retry -ge 1 ]
 			do
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$acc" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$acc" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+				if [ "$ti" == "" ];then
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?dbfrom=taxonomy&${apkikey}&id=$acc&rettype=fasta&retmode=xml" |head -n10 |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+				fi
+				retry=$((retry-1))
 			done
-			if [ "$ti" == "" ];then
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?dbfrom=taxonomy&id=$acc&rettype=fasta&retmode=xml" |head -n10 |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
-			fi
+			notFoundMessage $ti $acc
 			echo "$fasta $ti" >> $switchfile
 		;;
 		"gi")
-			ti=""
-			while [ "$ti" == "" ]
+			retry=$connectionRetries
+			while [ "$ti" == "" ] | [ $retry -ge 1 ]
 			do
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
-			done
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
 
-			if [ "$ti" == "$gi" ];then
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi" |head -n20 |grep "id" |awk '\''{print $2}'\'' |head -n1)
-			fi
-			
+				if [ "$ti" == "$gi" ];then
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&${apkikey}&id=$gi" |head -n20 |grep "id" |awk '\''{print $2}'\'' |head -n1)
+				fi
+				retry=$((retry-1))
+			done
+			notFoundMessage $ti $gi
 			echo "$fasta $ti" >> $switchfile
 		;;
 		"gb")
-			ti=""
-			while [ "$ti" == "" ]
+			retry=$connectionRetries
+			while [ "$ti" == "" ] | [ $retry -ge 1 ]
 			do
-				gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+				gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&${apkikey}&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
+				if [ "$gi" == "" ];then
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$gb" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+				else
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+				fi
+				retry=$((retry-1))
 			done
+			notFoundMessage $ti $gb
 			echo "$fasta $ti" >> $switchfile
 		;;
 		"emb")
-			ti=""
-			while [ "$ti" == "" ]
+			retry=$connectionRetries
+			while [ "$ti" == "" ] | [ $retry -ge 1 ]
 			do
-				gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
-			done
+				gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&${apkikey}&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+				retry=$((retry-1))
+			done			
+			notFoundMessage $ti $emb
 			echo "$fasta $ti" >> $switchfile
 		;;
 		"ref")
-			ti=""
-			while [ "$ti" == "" ]
+			retry=$connectionRetries
+			while [ "$ti" == "" ] | [ $retry -ge 1 ]
 			do
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&${apkikey}&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+				retry=$((retry-1))
 			done
+			notFoundMessage $ti $ref
 			echo "$fasta $ti" >> $switchfile
 		;;
 		*)
-		#in case the id is not found
-		#trying first string as Accession number
-		ac=$(echo "$fastaheader" |awk '\''{gsub(">","");print $1}'\'')
+			#in case the id is not found
+			#trying first string as Accession number
+
+			retry=$connectionRetries
+			ac=$(echo "$fastaheader" |awk '\''{gsub(">","");print $1}'\'')
 			ti=""
-			while [ "$ti" == "" ]
+			while [ "$ti" == "" ] && [ $retry -ge 1 ]
 			do
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sequences&id=$ac&rettype=fasta&retmode=xml" |head -n10 |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sequences&${apkikey}&id=$ac&rettype=fasta&retmode=xml" |head -n10 |grep "TSeq_taxid" | cut -d">" -f 2 | cut -d"<" -f 1)
+				retry=$((retry-1))
 			done
 
 			if [  "$ti" != "" ];then
 				echo "$fasta $ti" >> $switchfile
 			else
-				echo "No id to fetch is available for file $i, stop the proccess"
-				exit
+				echo "No id to fetch is available for $ac, continue"
 			fi
 		;;
 	esac
@@ -202,8 +228,11 @@ multifband=0
 multiway=0
 pbin=0
 PYTHONBIN=/usr/bin/python
-parallelJ=5
+parallelJ=1
 parallelband=0
+apikeyband=0
+apkikey=""
+unameOut="$(uname -s)"
 
 for i in "$@"
 do
@@ -220,23 +249,28 @@ do
 	"--parallelJobs")
 		parallelband=1
 	;;
+	"--apikey")
+		apikeyband=1
+	;;
 	"--help")
+		echo "UPDATE FROM NCBI: SINCE DECEMBER 2018, NO MORE THAN THREE PARALLEL JOBS CAN FETCH THE DBs."
+		echo -e "FOR MORE THAN THREE JOBS PLEASE CREATE AN NCBI ACOUNT AND THEN AN API KEY (USE THE --apikey)\n how to create it?: https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/\n\n"
 		echo "Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
 		echo "Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)"
 		echo "Usage 3: bash parseTaxID.bash --multifasta [multifasta_file] --pythonBin to provide a python v2.7"
-		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time (default 5, max 50)"
-
-		echo "Note: --workdir will take your fastas and put the tax id in the same file, make sure you have a backup of files."
+		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time (default 1, max [all cores or 3 without api key])"
+		echo "Usage 5: bash parseTaxID.bash --workdir [fastas_path] --apkikey 222220a2f4875347e41dfc568 (just an example of api key)"
 		exit
 
 	;;
 	"-h")
+		echo "UPDATE FROM NCBI: SINCE DECEMBER 2018, NO MORE THAN THREE PARALLEL JOBS CAN FETCH THE DBs."
+		echo -e "FOR MORE THAN THREE JOBS PLEASE CREATE AN NCBI ACOUNT AND THEN AN API KEY (USE THE --apikey)\n how to create it?: https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/\n\n"
 		echo "Usage 1: bash parseTaxID.bash --workdir [fastas_path] if you have a lot fastas in the workdir"
 		echo "Usage 2: bash parseTaxID.bash --multifasta [multifasta_file] if you have a huge multifasta file (.fna, .fn works too)"
 		echo "Usage 3: bash parseTaxID.bash --multifasta [multifasta_file] --pythonBin to provide a python v2.7"
-		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time (default 5, max 50)"
-
-		echo "Note: --workdir will take your fastas and put the tax id in the same file, make sure you have a backup of files."
+		echo "Usage 4: bash parseTaxID.bash --multifasta [multifasta_file] --parallelJobs 10 to fetch 10 tax IDs at the same time (default 1, max [all cores or 3 without api key])"
+		echo "Usage 5: bash parseTaxID.bash --workdir [fastas_path] --apkikey 222220a2f4875347e41dfc568 (just an example of api key)"
 		exit
 
 	;;
@@ -253,17 +287,18 @@ do
 			statusband=$((statusband+1))
 			multifband=0
 			multiway=1
-			actual=$(pwd)
+			#actual=$(pwd)
 			multifname=$(echo "$i" |rev |cut -d '/' -f 1 |rev)
-			multffolder=$(echo "$i" |rev |cut -d '/' -f 2- |rev)
-			if [ "$multifname" == "$multffolder" ];then
-				multif=$multifname
-			else
-				cd $multffolder
-				multffolder=$(pwd)
-				cd $actual
-				multif="$multffolder/$multifname"
-			fi
+			#multffolder=$(echo "$i" |rev |cut -d '/' -f 2- |rev)
+			#if [ "$multifname" == "$multffolder" ];then
+			#	
+			#else
+			#	cd $multffolder
+			#	multffolder=$(pwd)
+			#	cd $actual
+			#	multif="$multffolder/$multifname"
+			#fi
+			multif=$(realpath $i)
 			if [ ! -f "$multif" ];then
 				echo "* Error: $multif doesn't exist"
 				exit
@@ -279,13 +314,19 @@ do
 			parallelband=0
 			parallelJ=$i
 			if [ $((parallelJ)) -le 0 ];then
-				parallelJ=5
+				parallelJ=1
 			fi
-			if [ $((parallelJ)) -ge 41 ];then
-				echo "* Warning: parallelJobs limit is 40, upper values will set down to this value"
-				parallelJ=40
+			if [ $((parallelJ)) -ge $(nproc) ];then
+				echo "* Warning: parallelJobs values will set to max CPUs detected ($(nproc))"
+				parallelJ=$(nproc)
 			fi
 		fi
+
+		if [ $((apikeyband)) -eq 1 ];then
+			apikeyband=0
+			apkikey=$(echo "api_key="$i"&")
+		fi
+
 	esac
 done
 
@@ -294,7 +335,7 @@ if [ $((statusband)) -eq 1 ]; then
 ######################		SPLIT FASTAS	##########################
 	case $multiway in
 	"0")
-		echo "no multifasta specified, continue" 
+		echo "* working with workdir parameter" 
 	;;
 	"1")
 		echo "* Splitting multifasta, (if the file is a huge file (~300.000 or more sequences), you should go for a coffee while the script works"
@@ -302,7 +343,7 @@ if [ $((statusband)) -eq 1 ]; then
 			rm -fr $multifname""_TMP_FOLDER_DONT_TOUCH
 			mkdir $multifname""_TMP_FOLDER_DONT_TOUCH
 			cd $multifname""_TMP_FOLDER_DONT_TOUCH
-			awk '/^>/{close(s);s=++d".fasta"} {print > s}' ../$multif
+			awk '/^>/{close(s);s=++d".fasta"} {print > s}' $multif
 			echo "* Splitting complete, DON'T TOUCH $multifname_TMP_FOLDER WHILE SCRIPT IS RUNNING"
 			WORKDIR=$(pwd)
 			cd ..
@@ -339,7 +380,6 @@ if [ $((statusband)) -eq 1 ]; then
 	esac
 	
 ######################################################################
-
 ######################		FETCH ID		##########################
 
 	switchfile="newheader.txt"
@@ -348,27 +388,31 @@ if [ $((statusband)) -eq 1 ]; then
 	makeAwkWork
 	fetchFunction
 
-	if [ $((total)) -ge $((parallelJ)) ]; then
-		total=$(echo $total |awk -v parallelJ=$parallelJ '{print int($1/parallelJ)}' )
+	if [ $((parallelJ)) -ge  2 ]; then
+		if [ "$apikey" == "" ] && [ $((parallelJ)) -eq  2 ] ;then
+			parallelJ=2
+		fi
+		total=$(echo $total |awk -v parallelJ=$parallelJ '{print int($1/parallelJ)+1}' )
+		#bash asdsad
 		split -l $total $fileout
 		declare gpids
 		i=0
 		for Xchunks in $(ls -1 x[a-z][a-z])
 		do
-			bash fetch.bash $Xchunks $switchfile & lastgpid=$!
-			gpids[$i]="$lastgpid"
+			if [[ "$@" =~ "--debug" ]]; then
+				bash fetch.bash $Xchunks $switchfile $i $apkikey "--debug" & gpids[${i}]=$(echo $!)
+			else
+				bash fetch.bash $Xchunks $switchfile $i $apkikey & gpids[${i}]=$(echo $!)
+			fi
+
 			i=$((i+1))
 		done
 
-		for id in "${gpids[@]}"
+		for id in ${gpids[@]}
 		do
-			unameOut="$(uname -s)"
 			case "${unameOut}" in
 			    Linux*)
-					while [[ ( -d /proc/"$id" ) && ( -z "grep zombie /proc/$id/status" ) ]]
-					do
-						sleep 10
-					done
+					   wait $id
 				;;
 			    Darwin*)    
 					while kill -0 $id >/dev/null 2>&1
@@ -384,7 +428,12 @@ if [ $((statusband)) -eq 1 ]; then
 		rm x[a-z][a-z]
 
 	else
-		bash fetch.bash $fileout $switchfile
+		if [[ "$@" =~ "--debug" ]]; then
+			bash fetch.bash $fileout $switchfile "1" "--debug"
+		else
+			bash fetch.bash $fileout $switchfile "1"
+		fi
+		
 	fi
 
 	rm fetch.bash
