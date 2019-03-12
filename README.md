@@ -10,7 +10,8 @@ pasteTaxID can take large multifasta files (we have tried more than 150000 witho
 * Bash version 4 (comes with Linux and Mac)
 * Curl (tested in version 6)
 * Python == 2.7.x
-* Internet connection
+* Internet connection and
+* Optional: NCBI API KEY for parallel jobs. check this [link](https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities) for information about how to create it (highly recomended).
 
 ## Usage
 There are two ways of running the script. If you have a directory with individual fasta files, then use the following strategy:  
@@ -40,15 +41,16 @@ Additionally there is a complete way (two more parameters). If your default pyth
 
 	bash pasteTaxID.bash --multifasta myfasta.fasta --pythonBin /home/Peter/programs/python2.7/bin/python
 
-And finally, you can set the number of parallel process to improve the fetch speed (Max jobs: 40).
+And finally, you can set the number of parallel process to improve the fetch speed (Max jobs: your cores). Don't forget to create your NCBI api key (see requirements section)
 
-	bash pasteTaxID.bash --multifasta myfasta.fasta --parallelJobs 40
+	bash pasteTaxID.bash --multifasta myfasta.fasta --parallelJobs 8 --apikey 1a2b3c4d56788xyz
 
-This fetch 40 IDs at the same time (max number you can set: 40).
+This fetch 8 IDs at the same time (max number you can set: same number of all your cores).
 
 ### Notes
 * If you have a huge multifasta (> 1 million fasta entries), go for a coffee (or 2) while the script runs.
 * Notice that the order of fasta entries in a multifasta file might have changed in comparison to the order of fasta entries in the file pasteTaxID produces
+* NCBI doesn't allow more than 3 connections at the same time if you don't have an api key (and in my experience only work well with once), so if you want to use all your cores, please, put your api key (check this [link](https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities))
 
 ## External useful tools
 check for these tools to extract some useful information from your data:
@@ -65,4 +67,4 @@ check for these tools to extract some useful information from your data:
 
 * [GGisy](https://github.com/Sanrrone/GGisy): Plot synteny of two sequence (you can use two genomes), and see the identity of the matched regions.
 
-* [getS2](https://github.com/Sanrrone/getS2): obtain the order parameter to each residue of your simulation.
+* [getS2](https://github.com/Sanrrone/getS2): obtain the order parameter to each residue of your protein simulation.
