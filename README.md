@@ -2,9 +2,9 @@
 ------------
 
 Welcome to the final solution to a lot of headaches :D
-This script will take a multifasta file (or many individual fasta files), then search for common IDs (acc, ti, gi, emb, gb), and append the corresponding ti (and gi if missing) to fasta entries at high speed (10000 entries in just 4 minutes!, depending on your internet connection).
+This script will take a multifasta file (or many individual fasta files), then search for common IDs (acc, ti, gi, emb, gb), and append the corresponding ti to fasta entries at high speed (10000 entries in just 4 minutes!, depending on your internet connection and if you have a NCBI API KEY).
 
-pasteTaxID can take large multifasta files (we have tried more than 150000 without any problems), avoiding collapsing your system and saving a lot of time!
+pasteTaxID can take large multifasta files (we have tried more than 150000 without any problems), avoiding collapse your system and saving a lot of time!
 
 ## Requirements
 * Bash version 4 (comes with Linux and Mac)
@@ -15,7 +15,6 @@ pasteTaxID can take large multifasta files (we have tried more than 150000 witho
 
 ## Usage
 There are two ways of running the script. If you have a directory with individual fasta files, then use the following strategy:  
-
 
 #### Simple way
 
