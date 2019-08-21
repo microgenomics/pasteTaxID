@@ -136,9 +136,9 @@ do
 			retry=$connectionRetries
 			while [ "$ti" == "" ] | [ $retry -ge 1 ]
 			do
-				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$acc" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
+				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$acc" | grep "<Id>"| tail -n1 | awk '\''{print $1}'\'' | cut -d '\''>'\'' -f 2 | cut -d '\''<'\'' -f 1)
 				if [ "$ti" == "" ];then
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?dbfrom=taxonomy&${apkikey}&id=$acc&rettype=fasta&retmode=xml" |head -n10 |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?dbfrom=taxonomy&${apkikey}&id=$acc&rettype=fasta&retmode=xml" | head -n10 | grep "TSeq_taxid" | cut -d '\''>'\'' -f 2 | cut -d '\''<'\'' -f 1 )
 				fi
 				retry=$((retry-1))
 			done
@@ -445,18 +445,24 @@ if [ $((statusband)) -eq 1 ]; then
 		fasta=$(echo "$line" |awk '{print $1}')
 		ti=$(echo "$line" |awk '{print $2}')
 		echo "working on $fasta  ($i/$total)"
+		headerfasta=$(head -n 1 $fasta)
 
-		sed "s/>/>ti\|$ti\|/g" $fasta > tmp
-			case $multiway in
-			"0")
-				mv tmp new_$fasta
-			;;
-			"1")
-				rm $fasta
-				mv tmp $fasta
-			;;
-			esac
+		if ! [[ "$headerfasta" =~ ti\|[0-9].? ]];then
+			sed "s/>/>ti\|$ti\|/g" $fasta > tmp
+		else
+			cp $fasta tmp
+		fi
 
+		case $multiway in
+		"0")
+			mv tmp new_$fasta
+		;;
+		"1")
+			rm $fasta
+			mv tmp $fasta
+		;;
+		esac
+		
 		i=$((i+1))	
 	done
 
