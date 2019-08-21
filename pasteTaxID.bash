@@ -393,7 +393,6 @@ if [ $((statusband)) -eq 1 ]; then
 			parallelJ=2
 		fi
 		total=$(echo $total |awk -v parallelJ=$parallelJ '{print int($1/parallelJ)+1}' )
-		#bash asdsad
 		split -l $total $fileout
 		declare gpids
 		i=0
