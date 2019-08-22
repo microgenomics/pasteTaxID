@@ -134,11 +134,11 @@ do
 		;;
 		"acc")
 			retry=$connectionRetries
-			while [ "$ti" == "" ] | [ $retry -ge 1 ]
+			while [ "$ti" == "" ] || [ $retry -ge 1 ]
 			do
 				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$acc" | grep "<Id>"| tail -n1 | awk '\''{print $1}'\'' | cut -d '\''>'\'' -f 2 | cut -d '\''<'\'' -f 1)
 				if [ "$ti" == "" ];then
-					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?dbfrom=taxonomy&${apkikey}&id=$acc&rettype=fasta&retmode=xml" | head -n10 | grep "TSeq_taxid" | cut -d '\''>'\'' -f 2 | cut -d '\''<'\'' -f 1 )
+					ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?dbfrom=taxonomy&${apkikey}&rettype=fasta&retmode=xml&id=$acc" | head -n10 | grep "TSeq_taxid" | cut -d '\''>'\'' -f 2 | cut -d '\''<'\'' -f 1 )
 				fi
 				retry=$((retry-1))
 			done
@@ -147,7 +147,7 @@ do
 		;;
 		"gi")
 			retry=$connectionRetries
-			while [ "$ti" == "" ] | [ $retry -ge 1 ]
+			while [ "$ti" == "" ] || [ $retry -ge 1 ]
 			do
 				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
 
@@ -161,7 +161,7 @@ do
 		;;
 		"gb")
 			retry=$connectionRetries
-			while [ "$ti" == "" ] | [ $retry -ge 1 ]
+			while [ "$ti" == "" ] || [ $retry -ge 1 ]
 			do
 				gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&${apkikey}&id=$gb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
 				if [ "$gi" == "" ];then
@@ -176,7 +176,7 @@ do
 		;;
 		"emb")
 			retry=$connectionRetries
-			while [ "$ti" == "" ] | [ $retry -ge 1 ]
+			while [ "$ti" == "" ] || [ $retry -ge 1 ]
 			do
 				gi=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&${apkikey}&id=$emb&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk)
 				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&${apkikey}&id=$gi" |grep "<Id>"|tail -n1 |awk '\''{print $1}'\'' |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1)
@@ -187,7 +187,7 @@ do
 		;;
 		"ref")
 			retry=$connectionRetries
-			while [ "$ti" == "" ] | [ $retry -ge 1 ]
+			while [ "$ti" == "" ] || [ $retry -ge 1 ]
 			do
 				ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&${apkikey}&id=$ref&rettype=fasta&retmode=xml" |grep "TSeq_taxid" |cut -d '\''>'\'' -f 2 |cut -d '\''<'\'' -f 1 )
 				retry=$((retry-1))
@@ -324,7 +324,7 @@ do
 
 		if [ $((apikeyband)) -eq 1 ];then
 			apikeyband=0
-			apkikey=$(echo "api_key="$i"&")
+			apkikey=$(echo "api_key="$i)
 		fi
 
 	esac
@@ -424,7 +424,9 @@ if [ $((statusband)) -eq 1 ]; then
 			esac
 			
 		done
-		rm x[a-z][a-z]
+		if [[ ! "$@" =~ "--debug" ]]; then
+			rm x[a-z][a-z]
+		fi
 
 	else
 		if [[ "$@" =~ "--debug" ]]; then
@@ -478,7 +480,10 @@ if [ $((statusband)) -eq 1 ]; then
 		mv $multifname.new new_$multifname
 		mv new_$multifname ../.
 		cd ..
-		rm -rf $multifname""_TMP_FOLDER_DONT_TOUCH $switchfile
+
+		if [[ ! "$@" =~ "--debug" ]]; then
+			rm -rf $multifname""_TMP_FOLDER_DONT_TOUCH $switchfile
+		fi
 	;;
 	esac
 
